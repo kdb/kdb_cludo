@@ -1,0 +1,21 @@
+name: Publish release
+on:
+  push:
+    tags:
+      - "*"
+jobs:
+  publish:
+    name: Publish release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Create archive
+        run: |
+          git archive --format=zip --prefix=kdb_cludo/ HEAD -o kdb_cludo.zip
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: kdb_cludo.zip
