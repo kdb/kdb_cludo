@@ -1,0 +1,68 @@
+<?php
+
+/**
+ * @file
+ * Integration with Cludo search.
+ */
+
+use Drupal\file\FileInterface;
+use Drupal\image\Entity\ImageStyle;
+use Drupal\media\MediaInterface;
+use Drupal\node\NodeInterface;
+
+/**
+ * Implements hook_page_attachments().
+ *
+ * Adds custom metatag to node pages, to expose the URL to the teaser image
+ * that we use in various lists.
+ * This is requested by Cludo, for building their search results.
+ */
+function kdb_cludo_page_attachments(array &$page): void {
+  $metatag_id = 'teaserImage';
+  $image_style_id = 'list_teaser_4_3';
+
+  $route = \Drupal::routeMatch();
+
+  if ($route->getRouteName() !== 'entity.node.canonical') {
+    return;
+  }
+
+  $node = $route->getParameter('node');
+
+  if (!($node instanceof NodeInterface) || !$node->hasField('field_teaser_image')) {
+    return;
+  }
+
+  $teaser_medias = $node->get('field_teaser_image')->referencedEntities();
+  $teaser_media = reset($teaser_medias);
+
+  if (!($teaser_media instanceof MediaInterface) ||
+    !$teaser_media->hasField('field_media_image') ||
+    $teaser_media->get('field_media_image')->isEmpty()) {
+    return;
+  }
+
+  $file = $teaser_media->get('field_media_image')->entity;
+
+  if (!($file instanceof FileInterface)) {
+    return;
+  }
+
+  $file_uri = $file->getFileUri();
+  $image_style = ImageStyle::load($image_style_id);
+
+  if (!($image_style instanceof ImageStyle) || !$file_uri) {
+    return;
+  }
+
+  $teaserImageMetatag = [
+    '#tag' => 'meta',
+    '#attributes' => [
+      'name' => $metatag_id,
+      'content' => $image_style->buildUrl($file_uri),
+    ],
+  ];
+
+  $page['#attached']['html_head'][] = [$teaserImageMetatag, 'teaserImageMetatag'];
+
+}
