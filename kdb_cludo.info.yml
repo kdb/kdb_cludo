@@ -3,4 +3,6 @@ name: 'KDB Cludo'
 description: 'Integration with Cludo Search'
 package: KDB
 type: module
-core_version_requirement: ^10
+core_version_requirement: ^10 || ^11
+dependencies:
+  - dpl_event:dpl_event
