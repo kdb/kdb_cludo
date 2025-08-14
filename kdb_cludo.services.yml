@@ -1,0 +1,8 @@
+---
+services:
+    kdb_cludo.event_instance_canonical_metatag:
+      class: Drupal\kdb_cludo\EventSubscriber\EventInstanceCanonicalMetatag
+      arguments:
+        - '@dpl_event.reoccurring_date_formatter'
+      tags:
+        - { name: event_subscriber }

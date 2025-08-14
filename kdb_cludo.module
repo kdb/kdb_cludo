@@ -5,64 +5,165 @@
  * Integration with Cludo search.
  */
 
+use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\file\FileInterface;
 use Drupal\image\Entity\ImageStyle;
 use Drupal\media\MediaInterface;
-use Drupal\node\NodeInterface;
 
 /**
- * Implements hook_page_attachments().
+ * Getting the teaser-list image of an entity as a Cludo-readable metatag.
  *
- * Adds custom metatag to node pages, to expose the URL to the teaser image
- * that we use in various lists.
- * This is requested by Cludo, for building their search results.
+ * @param \Drupal\Core\Entity\FieldableEntityInterface $entity
+ *   The entity we're looking up.
+ * @param string $field_name
+ *   The field name of the teaser image field.
+ * @param string $metatag_key
+ *   The key that will be used as the metatag key.
+ *
+ * @return array<mixed>|null
+ *   A meta-tag render array, ready to be used in #attached.
  */
-function kdb_cludo_page_attachments(array &$page): void {
-  $metatag_id = 'teaserImage';
+function _kdb_cludo_get_image_metatag(FieldableEntityInterface $entity, string $field_name, string $metatag_key): ?array {
   $image_style_id = 'list_teaser_4_3';
 
-  $route = \Drupal::routeMatch();
-
-  if ($route->getRouteName() !== 'entity.node.canonical') {
-    return;
+  if (!$entity->hasField($field_name)) {
+    return NULL;
   }
 
-  $node = $route->getParameter('node');
-
-  if (!($node instanceof NodeInterface) || !$node->hasField('field_teaser_image')) {
-    return;
-  }
-
-  $teaser_medias = $node->get('field_teaser_image')->referencedEntities();
+  $teaser_medias = $entity->get($field_name)->referencedEntities();
   $teaser_media = reset($teaser_medias);
 
   if (!($teaser_media instanceof MediaInterface) ||
     !$teaser_media->hasField('field_media_image') ||
     $teaser_media->get('field_media_image')->isEmpty()) {
-    return;
+    return NULL;
   }
 
   $file = $teaser_media->get('field_media_image')->entity;
 
   if (!($file instanceof FileInterface)) {
-    return;
+    return NULL;
   }
 
   $file_uri = $file->getFileUri();
   $image_style = ImageStyle::load($image_style_id);
 
   if (!($image_style instanceof ImageStyle) || !$file_uri) {
-    return;
+    return NULL;
   }
 
-  $teaserImageMetatag = [
+  return [
     '#tag' => 'meta',
     '#attributes' => [
-      'name' => $metatag_id,
+      'name' => $metatag_key,
       'content' => $image_style->buildUrl($file_uri),
     ],
   ];
+}
 
-  $page['#attached']['html_head'][] = [$teaserImageMetatag, 'teaserImageMetatag'];
+/**
+ * Getting reference-field labels, as metatags.
+ *
+ * This is useful for stuff such as tags and categories, to expose to Cludo.
+ *
+ * @param \Drupal\Core\Entity\FieldableEntityInterface $entity
+ *   The entity we're looking up.
+ * @param string $field_name
+ *   The field name of the reference field.
+ * @param string $metatag_key
+ *   The key that will be used as the metatag key.
+ *
+ * @return array<mixed>|null
+ *   A meta-tag render array, ready to be used in #attached.
+ */
+function _kdb_cludo_get_reference_label_metatag(FieldableEntityInterface $entity, string $field_name, string $metatag_key): ?array {
+  if (!$entity->hasField($field_name) || $entity->get($field_name)->isEmpty()) {
+    return NULL;
+  }
+
+  $field = $entity->get($field_name);
+
+  $references = $field->referencedEntities();
+  $labels = [];
+
+  foreach ($references as $reference) {
+    if (!($reference instanceof FieldableEntityInterface)) {
+      continue;
+    }
+
+    $label = $reference->label();
+
+    if (!empty($label)) {
+      $labels[] = $label;
+    }
+  }
+
+  if (empty($labels)) {
+    return NULL;
+  }
+
+  return [
+    '#tag' => 'meta',
+    '#attributes' => [
+      'name' => $metatag_key,
+      'content' => implode(', ', $labels),
+    ],
+  ];
+}
+
+/**
+ * Implements hook_page_attachments().
+ *
+ * Adds custom metatag to node and event pages, to expose data as metatags, for
+ * Cludo search to use in their results.
+ */
+function kdb_cludo_page_attachments(array &$page): void {
+  $route = \Drupal::routeMatch();
+  $branch_field_name = 'field_branch';
+  $categories_field_name = 'field_categories';
+  $tags_field_name = 'field_tags';
+  $image_field_name = 'field_teaser_image';
+
+  switch ($route->getRouteName()) {
+    case 'entity.node.canonical':
+      $entity = $route->getParameter('node');
+      break;
+
+    case 'entity.eventseries.canonical':
+      $entity = $route->getParameter('eventseries');
+      break;
+
+    case 'entity.eventinstance.canonical':
+      $entity = $route->getParameter('eventinstance');
+      $branch_field_name = 'branch';
+      $categories_field_name = 'event_categories';
+      $tags_field_name = 'event_tags';
+      $image_field_name = 'event_teaser_image';
+      break;
+
+    default:
+      return;
+  }
+
+  $reference_fields = [
+    'branch' => $branch_field_name,
+    'categories' => $categories_field_name,
+    'tags' => $tags_field_name,
+  ];
+
+  foreach ($reference_fields as $key => $field_name) {
+    $reference_metatag = _kdb_cludo_get_reference_label_metatag($entity, $field_name, $key);
+
+    if ($reference_metatag) {
+      $page['#attached']['html_head'][] = [$reference_metatag, $key];
+    }
+  }
+
+  $image_metatag_key = 'teaserImage';
+  $image_metatag = _kdb_cludo_get_image_metatag($entity, $image_field_name, $image_metatag_key);
+
+  if ($image_metatag) {
+    $page['#attached']['html_head'][] = [$image_metatag, $image_metatag_key];
+  }
 
 }
