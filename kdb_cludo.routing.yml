@@ -17,3 +17,34 @@ kdb_cludo.search_page.main:
   requirements:
     _permission: 'access content'
 
+kdb_cludo.search_page.help:
+  path: '/cludo/help'
+  defaults:
+    _controller: '\Drupal\kdb_cludo\Controller\CludoSearchHelp::page'
+    _title_callback: '\Drupal\kdb_cludo\Controller\CludoSearchHelp::getTitle'
+  requirements:
+    _permission: 'access content'
+
+kdb_cludo.search_page.help_english:
+  path: '/en/cludo/help'
+  defaults:
+    _controller: '\Drupal\kdb_cludo\Controller\CludoSearchHelpEnglish::page'
+    _title_callback: '\Drupal\kdb_cludo\Controller\CludoSearchHelpEnglish::getTitle'
+  requirements:
+    _permission: 'access content'
+
+kdb_cludo.search_page.event:
+  path: '/cludo/events'
+  defaults:
+    _controller: '\Drupal\kdb_cludo\Controller\CludoSearchEvent::page'
+    _title_callback: '\Drupal\kdb_cludo\Controller\CludoSearchEvent::getTitle'
+  requirements:
+    _permission: 'access content'
+
+kdb_cludo.search_page.article:
+  path: '/cludo/articles'
+  defaults:
+    _controller: '\Drupal\kdb_cludo\Controller\CludoSearchArticle::page'
+    _title_callback: '\Drupal\kdb_cludo\Controller\CludoSearchArticle::getTitle'
+  requirements:
+    _permission: 'access content'

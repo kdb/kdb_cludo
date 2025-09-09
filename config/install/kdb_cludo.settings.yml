@@ -9,3 +9,23 @@ profiles:
     show_title: 0
     title: 'Søg på bibliotek.kk.dk'
     input_placeholder: 'Søg på bibliotek.kk.dk..'
+  article:
+    enabled: 1
+    show_title: 1
+    title: 'Artikler'
+    input_placeholder: 'Søg i bibliotekets artikler..'
+  event:
+    enabled: 1
+    show_title: 1
+    title: 'Arrangementer'
+    input_placeholder: 'Søg i bibliotekets arrangementer..'
+  help:
+    enabled: 1
+    show_title: 1
+    title: 'Hjælpeunivers'
+    input_placeholder: 'Søg i hjælpeunivers..'
+  help_en:
+    enabled: 1
+    show_title: 1
+    title: 'Help universe'
+    input_placeholder: 'Search in help universe..'

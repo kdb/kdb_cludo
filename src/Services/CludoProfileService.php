@@ -3,6 +3,10 @@
 namespace Drupal\kdb_cludo\Services;
 
 use Drupal\kdb_cludo\CludoProfile;
+use Drupal\kdb_cludo\Controller\CludoSearchArticle;
+use Drupal\kdb_cludo\Controller\CludoSearchEvent;
+use Drupal\kdb_cludo\Controller\CludoSearchHelp;
+use Drupal\kdb_cludo\Controller\CludoSearchHelpEnglish;
 use Drupal\kdb_cludo\Controller\CludoSearchMain;
 
 /**
@@ -19,6 +23,10 @@ class CludoProfileService {
   public function getProfiles(): array {
     return [
       (new CludoSearchMain())->profile,
+      (new CludoSearchArticle())->profile,
+      (new CludoSearchEvent())->profile,
+      (new CludoSearchHelp())->profile,
+      (new CludoSearchHelpEnglish())->profile,
     ];
   }
 
