@@ -10,5 +10,12 @@ services:
     tags:
       - { name: event_subscriber }
 
+  kdb_cludo.search_page_redirects:
+    class: Drupal\kdb_cludo\EventSubscriber\SearchPageRedirects
+    arguments:
+      - '@kdb_cludo.cludo_profile'
+    tags:
+      - { name: event_subscriber }
+
   kdb_cludo.cludo_profile:
     class: Drupal\kdb_cludo\Services\CludoProfileService
