@@ -175,4 +175,41 @@ class CludoApiService {
     return $results['TotalDocument'] ?? NULL;
   }
 
+  /**
+   * Telling Cludo to index a node, if URL pushing is enabled in Cludo settings.
+   */
+  public function pushNodeData(NodeInterface $node, bool $english = FALSE): bool {
+    $enabled = $this->config->get('enable_url_pushing');
+
+    if (empty($enabled)) {
+      $this->logger->warning('Could not push: Cludo URL pushing is disabled.');
+      return FALSE;
+    }
+
+    $crawlerId = $this->config->get('crawler_id');
+    $crawlerIdEnglish = $this->config->get('crawler_id_english');
+
+    $crawlerId = ($english) ? $crawlerIdEnglish : $crawlerId;
+
+    if (!$crawlerId) {
+      $this->logger->warning('Could not push: Crawler ID not set.');
+      return FALSE;
+    }
+
+    $customerId = $this->config->get('customer_id');
+    $url = "https://api.cludo.com/api/v3/$customerId/content/$crawlerId/pushurls";
+    $nodeUrl = $node->toUrl()->setAbsolute()->toString();
+    $response = $this->callApi($url, [$nodeUrl]);
+
+    $responseOK = ($response->getStatusCode() === 200);
+
+    if (!$responseOK) {
+      $this->logger->error('Cludo URL pushing failed. Response: @message', [
+        '@message' => $response->getBody()->getContents(),
+      ]);
+    }
+
+    return ($responseOK);
+  }
+
 }

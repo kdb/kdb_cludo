@@ -140,6 +140,20 @@ function kdb_cludo_entity_base_field_info(EntityTypeInterface $entity_type): arr
 }
 
 /**
+ * Implements hook_ENTITY_TYPE_presave().
+ */
+function kdb_cludo_node_presave(NodeInterface $node): void {
+  if (!$node->hasField('kdb_cludo_english')) {
+    return;
+  }
+
+  $isEnglish = !empty($node->get('kdb_cludo_english')->getString());
+
+  $apiService = DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api');
+  $apiService->pushNodeData($node, $isEnglish);
+}
+
+/**
  * Implements hook_page_attachments().
  *
  * Adds custom metatag to node and event pages, to expose data as metatags, for

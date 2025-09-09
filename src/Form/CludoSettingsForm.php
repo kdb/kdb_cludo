@@ -70,7 +70,6 @@ class CludoSettingsForm extends ConfigFormBase {
       'enabled' => [
         '#type' => 'checkbox',
         '#title' => $this->t('Enable', [], ['context' => 'kdb_cludo']),
-
       ],
       'show_title' => [
         '#type' => 'checkbox',
@@ -106,19 +105,49 @@ class CludoSettingsForm extends ConfigFormBase {
     $config = $this->config(self::CONFIG_SETTINGS_KEY);
     $form = parent::buildForm($form, $form_state);
 
-    $form['customer_id'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Cludo customer ID', [], ['context' => 'kdb_cludo']),
-      '#default_value' => $config->get("customer_id"),
+    $form['api_settings'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Cludo API setup', [], ['context' => 'kdb_cludo']),
+      'customer_id' => [
+        '#type' => 'number',
+        '#title' => $this->t('Cludo customer ID', [], ['context' => 'kdb_cludo']),
+        '#default_value' => $config->get("customer_id"),
+      ],
+      'api_key' => [
+        [
+          '#type' => 'textfield',
+          '#title' => $this->t('Cludo API key', [], ['context' => 'kdb_cludo']),
+          '#description' => $this->t('<a href="@url">Cludo documentation</a>', [
+            '@url' => 'https://docs.cludo.com/#authentication_basic',
+          ], ['context' => 'kdb_cludo']),
+          '#default_value' => $config->get("api_key"),
+        ],
+      ],
     ];
 
-    $form['api_key'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Cludo API key', [], ['context' => 'kdb_cludo']),
-      '#description' => $this->t('<a href="@url">Cludo documentation</a>', [
-        '@url' => 'https://docs.cludo.com/#authentication_basic',
-      ], ['context' => 'kdb_cludo']),
-      '#default_value' => $config->get("api_key"),
+    $form['url_pushing'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('URL pushing to Cludo', [], ['context' => 'kdb_cludo']),
+      'enable_url_pushing' => [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Enable URL pushing', [], ['context' => 'kdb_cludo']),
+        '#description' => $this->t(
+          'If enabled, content will automatically be pushed to Cludo as soon as it is saved.
+        <strong>NOTICE!</strong> Make sure that English content is marked up correctly, or it may be pushed to the danish crawler (or vice versa)',
+          [], ['context' => 'kdb_cludo']
+        ),
+        '#default_value' => !empty($config->get("enable_url_pushing")),
+      ],
+      'crawler_id' => [
+        '#type' => 'number',
+        '#title' => $this->t('Crawler ID', [], ['context' => 'kdb_cludo']),
+        '#default_value' => $config->get('crawler_id'),
+      ],
+      'crawler_id_english' => [
+        '#type' => 'number',
+        '#title' => $this->t('Crawler ID (English content)', [], ['context' => 'kdb_cludo']),
+        '#default_value' => $config->get('crawler_id_english'),
+      ],
     ];
 
     foreach ($this->cludoProfileService->getProfiles() as $profile) {
@@ -158,6 +187,9 @@ class CludoSettingsForm extends ConfigFormBase {
 
     $config->set('customer_id', $form_state->getValue('customer_id'));
     $config->set('api_key', $form_state->getValue('api_key'));
+    $config->set('enable_url_pushing', $form_state->getValue('enable_url_pushing'));
+    $config->set('crawler_id', $form_state->getValue('crawler_id'));
+    $config->set('crawler_id_english', $form_state->getValue('crawler_id_english'));
 
     $profiles_settings = [];
 
