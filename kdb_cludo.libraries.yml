@@ -8,11 +8,3 @@ base:
     assets/cludo-search-init.js: {}
     'https://customer.cludo.com/scripts/bundles/search-script.min.js':
       { type: external, attributes: { defer: true } }
-    'https://customer.cludo.com/templates/2719/14490/dist/js/cludo-search-results.js':
-      { attributes: { defer: true } }
-    'https://customer.cludo.com/scripts/bundles/experiences/manager.js':
-      {
-        type: external,
-        attributes:
-          { defer: true, data-cid: '2719', 'id': 'cludo-experience-manager' },
-      }

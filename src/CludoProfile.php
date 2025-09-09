@@ -99,6 +99,7 @@ class CludoProfile {
    */
   public function getJsSettings(): array {
     return [
+      'customerId' => $this->config->get('customer_id'),
       'searchType' => $this->cludoType,
       'engineId' => $this->cludoEngineId,
       'language' => $this->cludoLanguage,

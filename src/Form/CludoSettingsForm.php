@@ -120,8 +120,9 @@ class CludoSettingsForm extends ConfigFormBase {
       $form["profile_{$id}"] = [
         '#type' => 'fieldset',
         '#title' => $profile->label,
-        '#description' => $this->t('<a href="@url" target="_blank">@url</a>', [
+        '#description' => $this->t('<a href="@url" target="_blank">@url</a> | engineId: @id', [
           '@url' => Url::fromRoute($profile->cludoRouteName)->toString(),
+          '@id' => $profile->cludoEngineId,
         ], ['context' => 'kdb_cludo']),
       ];
 
