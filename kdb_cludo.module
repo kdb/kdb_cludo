@@ -208,6 +208,61 @@ function kdb_cludo_preprocess_page(array &$variables): void {
 }
 
 /**
+ * Implements hook_preprocess().
+ *
+ * Add a link to the editorial web search, on the material search page,
+ * if we find any results from the search string query.
+ */
+function kdb_cludo_preprocess_dpl_react_app(array &$variables): void {
+  $name = $variables['name'] ?? NULL;
+
+  if ($name !== 'search-result') {
+    return;
+  }
+
+  $variables['#cache']['tags'][] = 'kdb_cludo';
+
+  // Getting the input that was material-searched for.
+  $input = \Drupal::request()->query->get(DplSearchSettings::MATERIAL_QUERY_KEY);
+
+  if (empty($input) || !is_string($input)) {
+    return;
+  }
+
+  $input = urldecode($input);
+
+  $profileService = DrupalTyped::service(CludoProfileService::class, 'kdb_cludo.cludo_profile');
+  $profile = $profileService->getProfileByValue('main');
+
+  if (!$profile) {
+    return;
+  }
+
+  $config = $profile->getConfigSettings();
+  $enabled = $config['enabled'] ?? NULL;
+
+  if (!$enabled) {
+    return;
+  }
+
+  $url = $profile->getCludoUrl();
+
+  if ($url instanceof Url) {
+    $url->setAbsolute(TRUE);
+
+    $apiService = DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api');
+    $apiService->setProfile($profile);
+
+    $variables['attributes']['data-web-search-config'] = Safe\json_encode([
+      'webSearchText' => $input,
+      'webSearchUrl' => $url->toString() . "#?cludoquery=$input",
+      'hasWebSearchResults' => TRUE,
+      // @todo get total from Cludo API lookup.
+      'webSearchTotal' => NULL,
+    ]);
+  }
+}
+/**
  * Implements hook_theme().
  */
 function kdb_cludo_theme(array $existing, string $type, string $theme, string $path): array {
@@ -234,6 +289,8 @@ function kdb_cludo_module_implements_alter(array &$implementations, string $hook
   $target_hooks = [
     // To make sure that our custom Cludo search header shows up.
     'template_preprocess_page',
+    // Alter the link shown on material search.
+    'template_preprocess_dpl_react_app',
   ];
 
   if (!in_array($hook, $target_hooks)) {
