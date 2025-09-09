@@ -3,6 +3,7 @@ dependencies:
   enforced:
     module:
       - kdb_cludo
+customer_id: 2719
 profiles:
   main:
     enabled: 1

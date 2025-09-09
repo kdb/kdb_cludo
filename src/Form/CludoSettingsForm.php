@@ -100,6 +100,21 @@ class CludoSettingsForm extends ConfigFormBase {
     $config = $this->config(self::CONFIG_SETTINGS_KEY);
     $form = parent::buildForm($form, $form_state);
 
+    $form['customer_id'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Cludo customer ID', [], ['context' => 'kdb_cludo']),
+      '#default_value' => $config->get("customer_id"),
+    ];
+
+    $form['api_key'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Cludo API key', [], ['context' => 'kdb_cludo']),
+      '#description' => $this->t('<a href="@url">Cludo documentation</a>', [
+        '@url' => 'https://docs.cludo.com/#authentication_basic',
+      ], ['context' => 'kdb_cludo']),
+      '#default_value' => $config->get("api_key"),
+    ];
+
     foreach ($this->cludoProfileService->getProfiles() as $profile) {
       $id = $profile->id;
       $form["profile_{$id}"] = [
@@ -133,6 +148,9 @@ class CludoSettingsForm extends ConfigFormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $config = $this->config(self::CONFIG_SETTINGS_KEY);
+
+    $config->set('customer_id', $form_state->getValue('customer_id'));
+    $config->set('api_key', $form_state->getValue('api_key'));
 
     $profiles_settings = [];
 
