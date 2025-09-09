@@ -1,0 +1,21 @@
+
+{% if title %}
+<div class="content-list-page">
+  <h1 class="content-list-page__heading">
+    {{ title }}
+  </h1>
+</div>
+{% endif %}
+
+<div id="cludo-search-results" class="cludo-search-results content-list">
+
+  <div class="cludo-search-results__facets search-filters cludo-search-controls" aria-controls="search-results">
+  </div>
+
+  <div class="cludo-search-results__layout">
+
+    <div class="cludo-search-results__results-wrapper">
+      <div class="cludo-search-results__results search-results" role="region" id="search-results" aria-live="polite" aria-label="{{ 'Search results'|t({}, {context: 'kdb_cludo'}) }}"></div>
+    </div>
+  </div>
+</div>

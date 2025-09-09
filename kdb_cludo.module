@@ -5,9 +5,14 @@
  * Integration with Cludo search.
  */
 
+use Drupal\Core\Url;
 use Drupal\Core\Entity\FieldableEntityInterface;
+use Drupal\dpl_search\DplSearchSettings;
+use Drupal\drupal_typed\DrupalTyped;
 use Drupal\file\FileInterface;
 use Drupal\image\Entity\ImageStyle;
+use Drupal\kdb_cludo\CludoProfile;
+use Drupal\kdb_cludo\Services\CludoProfileService;
 use Drupal\media\MediaInterface;
 
 /**
@@ -167,3 +172,17 @@ function kdb_cludo_page_attachments(array &$page): void {
   }
 
 }
+
+/**
+ * Implements hook_theme().
+ */
+function kdb_cludo_theme(array $existing, string $type, string $theme, string $path): array {
+  return [
+    'kdb_cludo_search_page' => [
+      'variables' => [
+        'title' => NULL,
+      ],
+    ],
+  ];
+}
+

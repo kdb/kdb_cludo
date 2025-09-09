@@ -1,0 +1,11 @@
+---
+kdb_cludo.general_settings:
+  path: '/admin/config/kdb-cludo/settings'
+  defaults:
+    _form: '\Drupal\kdb_cludo\Form\CludoSettingsForm'
+    _title: 'Cludo settings for KK'
+  requirements:
+    _permission: 'administer kdb_cludo'
+  options:
+    _admin_route: TRUE
+
