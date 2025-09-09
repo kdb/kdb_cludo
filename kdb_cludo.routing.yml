@@ -9,3 +9,11 @@ kdb_cludo.general_settings:
   options:
     _admin_route: TRUE
 
+kdb_cludo.search_page.main:
+  path: '/cludo/main'
+  defaults:
+    _controller: '\Drupal\kdb_cludo\Controller\CludoSearchMain::page'
+    _title_callback: '\Drupal\kdb_cludo\Controller\CludoSearchMain::getTitle'
+  requirements:
+    _permission: 'access content'
+

@@ -3,6 +3,7 @@
 namespace Drupal\kdb_cludo\Services;
 
 use Drupal\kdb_cludo\CludoProfile;
+use Drupal\kdb_cludo\Controller\CludoSearchMain;
 
 /**
  * Helper service, for getting Cludo search profiles.
@@ -17,6 +18,7 @@ class CludoProfileService {
    */
   public function getProfiles(): array {
     return [
+      (new CludoSearchMain())->profile,
     ];
   }
 

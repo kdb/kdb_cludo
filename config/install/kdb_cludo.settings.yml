@@ -3,3 +3,9 @@ dependencies:
   enforced:
     module:
       - kdb_cludo
+profiles:
+  main:
+    enabled: 1
+    show_title: 0
+    title: 'Søg på bibliotek.kk.dk'
+    input_placeholder: 'Søg på bibliotek.kk.dk..'
