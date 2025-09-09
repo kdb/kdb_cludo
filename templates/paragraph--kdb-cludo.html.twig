@@ -1,5 +1,11 @@
-{% set classes = ['content-list', 'rich-text'] %}
+{% set classes = ['content-list', 'kdb-cludo'] %}
 
 <div{{ attributes.addClass(classes) }}>
-  {{ content }}
+  <div class="rich-text kdb-cludo__content">
+    {{ content|without('form') }}
+  </div>
+
+  <div class="kdb-cludo__form">
+    {{ content.form }}
+  </div>
 </div>

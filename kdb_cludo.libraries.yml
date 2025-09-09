@@ -2,6 +2,7 @@
 base:
   css:
     theme:
+      'assets/cludo-search.css': {}
       'https://customer.cludo.com/templates/2719/14490/dist/styles/cludo-search-results.css':
         {}
   js:
