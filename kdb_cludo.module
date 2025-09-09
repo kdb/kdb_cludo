@@ -174,6 +174,40 @@ function kdb_cludo_page_attachments(array &$page): void {
 }
 
 /**
+ * Implements template_preprocess_page().
+ *
+ * If we are on a Cludo-search page, we replace the material search
+ * toolbar with the cludo auto-complete form.
+ * That way, the user can see and change their fulltext search in the header.
+ */
+function kdb_cludo_preprocess_page(array &$variables): void {
+  $route_name = \Drupal::routeMatch()->getRouteName();
+
+  // Let's do a simple check first, to avoid a somewhat-heavy look up on
+  // every single route.
+  if (!$route_name || !str_starts_with($route_name, 'kdb_cludo.search_page')) {
+    return;
+  }
+
+  $variables['search']['header'] = [
+    '#theme' => 'kdb_cludo_search_header',
+    '#default_input' => \Drupal::request()->query->get('cludoquery'),
+    '#label' => t('Search', [], ['context' => 'kdb_cludo']),
+  ];
+
+  $service = DrupalTyped::service(CludoProfileService::class, 'kdb_cludo.cludo_profile');
+  $profile = $service->getProfileByValue($route_name, 'cludoRouteName');
+
+  if (!$profile) {
+    return;
+  }
+
+  $config = $profile->getConfigSettings();
+
+  $variables['search']['header']['#label'] = $config['input_placeholder'] ?? NULL;
+}
+
+/**
  * Implements hook_theme().
  */
 function kdb_cludo_theme(array $existing, string $type, string $theme, string $path): array {
@@ -181,8 +215,33 @@ function kdb_cludo_theme(array $existing, string $type, string $theme, string $p
     'kdb_cludo_search_page' => [
       'variables' => [
         'title' => NULL,
+    'kdb_cludo_search_header' => [
+      'variables' => [
+        'label' => t('Search content', [], ['context' => 'kdb_cludo']),
+        'default_input' => NULL,
       ],
     ],
   ];
 }
 
+/**
+ * Implements hook_module_implements_alter().
+ *
+ * Make sure the page_process happens last, after any other contrib
+ * modules. This can be necessary to override dpl module functionality.
+ */
+function kdb_cludo_module_implements_alter(array &$implementations, string $hook): void {
+  $target_hooks = [
+    // To make sure that our custom Cludo search header shows up.
+    'template_preprocess_page',
+  ];
+
+  if (!in_array($hook, $target_hooks)) {
+    return;
+  }
+
+  // Move our hook implementation to the bottom of the list, to run last.
+  $group = $implementations['kdb_cludo'];
+  unset($implementations['kdb_cludo']);
+  $implementations['kdb_cludo'] = $group;
+}
