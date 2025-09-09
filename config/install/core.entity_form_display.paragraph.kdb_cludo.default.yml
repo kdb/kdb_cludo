@@ -1,0 +1,35 @@
+---
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.paragraph.kdb_cludo.field_kdb_cludo_prefix
+    - field.field.paragraph.kdb_cludo.field_kdb_cludo_profile
+    - paragraphs.paragraphs_type.kdb_cludo
+  module:
+    - text
+  enforced:
+    module:
+      - kdb_cludo
+id: paragraph.kdb_cludo.default
+targetEntityType: paragraph
+bundle: kdb_cludo
+mode: default
+content:
+  field_kdb_cludo_prefix:
+    type: text_textarea
+    weight: 1
+    region: content
+    settings:
+      rows: 5
+      placeholder: ''
+    third_party_settings: {}
+  field_kdb_cludo_profile:
+    type: options_select
+    weight: 5
+    region: content
+    settings: {}
+    third_party_settings: {}
+hidden:
+  created: true
+  status: true

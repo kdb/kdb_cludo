@@ -1,0 +1,27 @@
+---
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_kdb_cludo_prefix
+    - filter.format.basic
+    - paragraphs.paragraphs_type.kdb_cludo
+  module:
+    - text
+  enforced:
+    module:
+      - kdb_cludo
+id: paragraph.kdb_cludo.field_kdb_cludo_prefix
+field_name: field_kdb_cludo_prefix
+entity_type: paragraph
+bundle: kdb_cludo
+label: 'Title and description'
+description: ''
+required: false
+translatable: false
+default_value: {}
+default_value_callback: ''
+settings:
+  allowed_formats:
+    - basic
+field_type: text_long

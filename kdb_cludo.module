@@ -14,6 +14,7 @@ use Drupal\image\Entity\ImageStyle;
 use Drupal\kdb_cludo\CludoProfile;
 use Drupal\kdb_cludo\Services\CludoProfileService;
 use Drupal\media\MediaInterface;
+use Drupal\paragraphs\ParagraphInterface;
 
 /**
  * Getting the teaser-list image of an entity as a Cludo-readable metatag.
@@ -262,6 +263,94 @@ function kdb_cludo_preprocess_dpl_react_app(array &$variables): void {
     ]);
   }
 }
+
+/**
+ * Implements hook_preprocess().
+ */
+function kdb_cludo_preprocess_paragraph(array &$variables): void {
+  $paragraph = $variables['paragraph'] ?? NULL;
+  $view_mode = $variables['view_mode'] ?? NULL;
+
+  if (
+    $view_mode === 'preview' ||
+    !($paragraph instanceof ParagraphInterface) ||
+    $paragraph->bundle() !== 'kdb_cludo'
+  ) {
+    return;
+  }
+
+  $service = DrupalTyped::service(CludoProfileService::class, 'kdb_cludo.cludo_profile');
+
+  $profile_id = $paragraph->get('field_kdb_cludo_profile')->getString();
+  $profile = $service->getProfileByValue($profile_id);
+
+  if (!($profile instanceof CludoProfile)) {
+    return;
+  }
+
+  $js_settings = $profile->getJsSettings();
+  $js_settings['searchInputSelectors'] = ["#cludo-search-input-help"];
+  $config = $profile->getConfigSettings();
+
+  $default_label = t('Search', [], ['context' => 'kdb_cludo']);
+
+  $variables['content']['form'] = [
+    '#theme' => 'kdb_cludo_search_form',
+    '#label' => $config['input_placeholder'] ?? $default_label,
+    '#button_label' => $default_label,
+    '#attached' => [
+      'library' => [
+        'kdb_cludo/base',
+      ],
+      'drupalSettings' => [
+        'kdb_cludo' => $js_settings,
+      ],
+    ],
+    '#context' => [
+      'tags' => ['kdb_cludo'],
+    ],
+  ];
+
+}
+
+/**
+ * Expose the profiles as options for paragraph field.
+ *
+ * @return array<mixed>
+ *   The profiles, in a format that <options> field understand.
+ */
+function kdb_cludo_profile_options(): array {
+  $service = DrupalTyped::service(CludoProfileService::class, 'kdb_cludo.cludo_profile');
+  $profiles = $service->getProfiles();
+
+  $values = [];
+
+  foreach ($profiles as $profile) {
+    $values[$profile->id] = $profile->label;
+  }
+
+  return $values;
+}
+
+/**
+ * Implements hook_theme_registry_alter().
+ *
+ * Paragraphs provides the base 'paragraph' theme hook and the automatic
+ * suggestion 'paragraph__{bundle}'. We reuse its variables and just point
+ * the suggestion to our module's template path.
+ */
+function kdb_cludo_theme_registry_alter(array &$theme_registry): void {
+  $suggestion = 'paragraph__kdb_cludo';
+
+  if (isset($theme_registry['paragraph'])) {
+    $theme_registry[$suggestion] = $theme_registry['paragraph'];
+    $theme_registry[$suggestion]['template'] = 'paragraph--kdb-cludo';
+
+    $path_resolver = \Drupal::service('extension.path.resolver');
+    $theme_registry[$suggestion]['path'] = $path_resolver->getPath('module', 'kdb_cludo') . '/templates';
+  }
+}
+
 /**
  * Implements hook_theme().
  */
@@ -270,6 +359,14 @@ function kdb_cludo_theme(array $existing, string $type, string $theme, string $p
     'kdb_cludo_search_page' => [
       'variables' => [
         'title' => NULL,
+      ],
+    ],
+    'kdb_cludo_search_form' => [
+      'variables' => [
+        'label' => t('Search content', [], ['context' => 'kdb_cludo']),
+        'button_label' => t('Search', [], ['context' => 'kdb_cludo']),
+      ],
+    ],
     'kdb_cludo_search_header' => [
       'variables' => [
         'label' => t('Search content', [], ['context' => 'kdb_cludo']),
