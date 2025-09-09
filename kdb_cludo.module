@@ -5,6 +5,7 @@
  * Integration with Cludo search.
  */
 
+use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Url;
 use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\dpl_search\DplSearchSettings;
@@ -15,6 +16,7 @@ use Drupal\kdb_cludo\CludoProfile;
 use Drupal\kdb_cludo\Services\CludoApiService;
 use Drupal\kdb_cludo\Services\CludoProfileService;
 use Drupal\media\MediaInterface;
+use Drupal\node\NodeInterface;
 use Drupal\paragraphs\ParagraphInterface;
 
 /**
@@ -116,6 +118,25 @@ function _kdb_cludo_get_reference_label_metatag(FieldableEntityInterface $entity
       'content' => implode(', ', $labels),
     ],
   ];
+}
+
+/**
+ * Implements hook_entity_base_field_info().
+ *
+ * Creating our custom programmatic fields.
+ *
+ * @return \Drupal\Core\Field\FieldDefinitionInterface[]
+ *   The field definitions.
+ */
+function kdb_cludo_entity_base_field_info(EntityTypeInterface $entity_type): array {
+  $fields = [];
+
+  // Create new fields for node bundle.
+  if ($entity_type->id() === 'node') {
+    $fields = CludoApiService::getFieldDefinitions();
+  }
+
+  return $fields;
 }
 
 /**

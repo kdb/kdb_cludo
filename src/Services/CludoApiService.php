@@ -4,8 +4,10 @@ namespace Drupal\kdb_cludo\Services;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\kdb_cludo\CludoProfile;
 use Drupal\kdb_cludo\Form\CludoSettingsForm;
+use Drupal\node\NodeInterface;
 use GuzzleHttp\ClientInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
@@ -68,6 +70,26 @@ class CludoApiService {
    */
   public function isAvailable(): bool {
     return $this->isAvailable;
+  }
+
+  /**
+   * Getting the field definitions for node. We need this as part of install.
+   *
+   * @return \Drupal\Core\Field\BaseFieldDefinition[]
+   *   The field definitions.
+   */
+  public static function getFieldDefinitions(): array {
+    $fields = [];
+
+    $fields['kdb_cludo_english'] = BaseFieldDefinition::create('boolean')
+      ->setLabel(t('English content', [], ['context' => 'kdb_cludo']))
+      ->setDescription(t('Mark if this content is english language. This makes sure it gets indexed correctly in searches.', [], ['context' => 'BNF']))
+      ->setDisplayOptions('form', [
+        'type' => 'checkbox',
+        'weight' => -99,
+      ]);
+
+    return $fields;
   }
 
   /**
