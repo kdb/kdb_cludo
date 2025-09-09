@@ -12,6 +12,7 @@ use Drupal\drupal_typed\DrupalTyped;
 use Drupal\file\FileInterface;
 use Drupal\image\Entity\ImageStyle;
 use Drupal\kdb_cludo\CludoProfile;
+use Drupal\kdb_cludo\Services\CludoApiService;
 use Drupal\kdb_cludo\Services\CludoProfileService;
 use Drupal\media\MediaInterface;
 use Drupal\paragraphs\ParagraphInterface;
@@ -254,12 +255,13 @@ function kdb_cludo_preprocess_dpl_react_app(array &$variables): void {
     $apiService = DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api');
     $apiService->setProfile($profile);
 
+    $cludoResults = $apiService->callSearch(['query' => $input]);
+
     $variables['attributes']['data-web-search-config'] = Safe\json_encode([
       'webSearchText' => $input,
       'webSearchUrl' => $url->toString() . "#?cludoquery=$input",
-      'hasWebSearchResults' => TRUE,
-      // @todo get total from Cludo API lookup.
-      'webSearchTotal' => NULL,
+      'hasWebSearchResults' => !empty($cludoResults['TotalDocument']),
+      'webSearchTotal' => $cludoResults['TotalDocument'] ?? NULL,
     ]);
   }
 }
