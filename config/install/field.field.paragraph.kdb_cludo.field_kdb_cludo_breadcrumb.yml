@@ -1,0 +1,28 @@
+---
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_kdb_cludo_breadcrumb
+    - paragraphs.paragraphs_type.kdb_cludo
+  enforced:
+    module:
+      - kdb_cludo
+id: paragraph.kdb_cludo.field_kdb_cludo_breadcrumb
+field_name: field_kdb_cludo_breadcrumb
+entity_type: paragraph
+bundle: kdb_cludo
+label: 'Breadcrumb context'
+description: 'Choose a breadcrumb of a peice of content that can be displayed on the search page.'
+required: false
+translatable: false
+default_value: {}
+default_value_callback: ''
+settings:
+  handler: views
+  handler_settings:
+    view:
+      view_name: entity_reference_content
+      display_name: entity_reference_1
+      arguments: {}
+field_type: entity_reference

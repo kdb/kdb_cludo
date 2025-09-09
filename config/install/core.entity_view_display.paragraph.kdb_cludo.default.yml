@@ -3,6 +3,7 @@ langcode: en
 status: true
 dependencies:
   config:
+    - field.field.paragraph.kdb_cludo.field_kdb_cludo_breadcrumb
     - field.field.paragraph.kdb_cludo.field_kdb_cludo_prefix
     - field.field.paragraph.kdb_cludo.field_kdb_cludo_profile
     - paragraphs.paragraphs_type.kdb_cludo
@@ -25,5 +26,6 @@ content:
     weight: 0
     region: content
 hidden:
+  field_kdb_cludo_breadcrumb: true
   search_api_excerpt: true
   field_kdb_cludo_profile: true

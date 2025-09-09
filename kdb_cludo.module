@@ -290,6 +290,12 @@ function kdb_cludo_preprocess_paragraph(array &$variables): void {
 
   $js_settings = $profile->getJsSettings();
   $js_settings['searchInputSelectors'] = ["#cludo-search-input-help"];
+  $breadcrumb_id = $paragraph->get('field_kdb_cludo_breadcrumb')->getString();
+
+  if (!empty($breadcrumb_id)) {
+    $js_settings['searchUrl'] .= "?breadcrumb=$breadcrumb_id";
+  }
+
   $config = $profile->getConfigSettings();
 
   $default_label = t('Search', [], ['context' => 'kdb_cludo']);
@@ -359,6 +365,7 @@ function kdb_cludo_theme(array $existing, string $type, string $theme, string $p
     'kdb_cludo_search_page' => [
       'variables' => [
         'title' => NULL,
+        'breadcrumb' => NULL,
       ],
     ],
     'kdb_cludo_search_form' => [

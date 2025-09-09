@@ -1,0 +1,23 @@
+---
+langcode: en
+status: true
+dependencies:
+  module:
+    - node
+    - paragraphs
+  enforced:
+    module:
+      - kdb_cludo
+id: paragraph.field_kdb_cludo_breadcrumb
+field_name: field_kdb_cludo_breadcrumb
+entity_type: paragraph
+type: entity_reference
+settings:
+  target_type: node
+module: core
+locked: false
+cardinality: 1
+translatable: true
+indexes: {}
+persist_with_no_fields: false
+custom_storage: false

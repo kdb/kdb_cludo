@@ -3,6 +3,7 @@ langcode: en
 status: true
 dependencies:
   config:
+    - field.field.paragraph.kdb_cludo.field_kdb_cludo_breadcrumb
     - field.field.paragraph.kdb_cludo.field_kdb_cludo_prefix
     - field.field.paragraph.kdb_cludo.field_kdb_cludo_profile
     - paragraphs.paragraphs_type.kdb_cludo
@@ -16,6 +17,16 @@ targetEntityType: paragraph
 bundle: kdb_cludo
 mode: default
 content:
+  field_kdb_cludo_breadcrumb:
+    type: entity_reference_autocomplete
+    weight: 4
+    region: content
+    settings:
+      match_operator: CONTAINS
+      match_limit: 10
+      size: 60
+      placeholder: ''
+    third_party_settings: {}
   field_kdb_cludo_prefix:
     type: text_textarea
     weight: 1
