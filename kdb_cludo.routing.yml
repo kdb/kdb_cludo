@@ -10,7 +10,7 @@ kdb_cludo.general_settings:
     _admin_route: TRUE
 
 kdb_cludo.search_page.main:
-  path: '/cludo/main'
+  path: '/indhold/soeg'
   defaults:
     _controller: '\Drupal\kdb_cludo\Controller\CludoSearchMain::page'
     _title_callback: '\Drupal\kdb_cludo\Controller\CludoSearchMain::getTitle'
@@ -18,7 +18,7 @@ kdb_cludo.search_page.main:
     _permission: 'access content'
 
 kdb_cludo.search_page.help:
-  path: '/cludo/help'
+  path: '/hjaelp/soeg'
   defaults:
     _controller: '\Drupal\kdb_cludo\Controller\CludoSearchHelp::page'
     _title_callback: '\Drupal\kdb_cludo\Controller\CludoSearchHelp::getTitle'
@@ -26,7 +26,7 @@ kdb_cludo.search_page.help:
     _permission: 'access content'
 
 kdb_cludo.search_page.help_english:
-  path: '/en/cludo/help'
+  path: '/help/search'
   defaults:
     _controller: '\Drupal\kdb_cludo\Controller\CludoSearchHelpEnglish::page'
     _title_callback: '\Drupal\kdb_cludo\Controller\CludoSearchHelpEnglish::getTitle'
@@ -34,7 +34,7 @@ kdb_cludo.search_page.help_english:
     _permission: 'access content'
 
 kdb_cludo.search_page.event:
-  path: '/cludo/events'
+  path: '/arrangementer/soeg'
   defaults:
     _controller: '\Drupal\kdb_cludo\Controller\CludoSearchEvent::page'
     _title_callback: '\Drupal\kdb_cludo\Controller\CludoSearchEvent::getTitle'
@@ -42,7 +42,7 @@ kdb_cludo.search_page.event:
     _permission: 'access content'
 
 kdb_cludo.search_page.article:
-  path: '/cludo/articles'
+  path: '/artikler/soeg'
   defaults:
     _controller: '\Drupal\kdb_cludo\Controller\CludoSearchArticle::page'
     _title_callback: '\Drupal\kdb_cludo\Controller\CludoSearchArticle::getTitle'
