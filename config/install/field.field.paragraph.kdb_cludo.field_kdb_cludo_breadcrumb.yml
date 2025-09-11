@@ -16,7 +16,7 @@ label: 'Breadcrumb context'
 description: 'Choose a breadcrumb of a peice of content that can be displayed on the search page.'
 required: false
 translatable: false
-default_value: {}
+default_value: {  }
 default_value_callback: ''
 settings:
   handler: views
@@ -24,5 +24,5 @@ settings:
     view:
       view_name: entity_reference_content
       display_name: entity_reference_1
-      arguments: {}
+      arguments: {  }
 field_type: entity_reference

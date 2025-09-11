@@ -13,12 +13,12 @@ field_name: field_kdb_cludo_profile
 entity_type: paragraph
 type: list_string
 settings:
-  allowed_values: {}
+  allowed_values: {  }
   allowed_values_function: kdb_cludo_profile_options
 module: options
 locked: false
 cardinality: 1
 translatable: true
-indexes: {}
+indexes: {  }
 persist_with_no_fields: false
 custom_storage: false

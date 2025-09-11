@@ -3,12 +3,12 @@ langcode: en
 status: true
 dependencies:
   config:
+    - field.field.paragraph.kdb_cludo.field_kdb_cludo_wide
     - field.field.paragraph.kdb_cludo.field_kdb_cludo_breadcrumb
     - field.field.paragraph.kdb_cludo.field_kdb_cludo_prefix
     - field.field.paragraph.kdb_cludo.field_kdb_cludo_profile
     - paragraphs.paragraphs_type.kdb_cludo
   module:
-    - options
     - text
   enforced:
     module:
@@ -21,11 +21,12 @@ content:
   field_kdb_cludo_prefix:
     type: text_default
     label: hidden
-    settings: {}
-    third_party_settings: {}
+    settings: {  }
+    third_party_settings: {  }
     weight: 0
     region: content
 hidden:
+  field_kdb_cludo_wide: true
   field_kdb_cludo_breadcrumb: true
-  search_api_excerpt: true
   field_kdb_cludo_profile: true
+  search_api_excerpt: true

@@ -1,4 +1,8 @@
-{% set classes = ['content-list', 'kdb-cludo'] %}
+{% set classes = [
+  'content-list',
+  'kdb-cludo',
+  paragraph.get('field_kdb_cludo_wide').getString() != '1' ? 'kdb-cludo--narrow',
+] %}
 
 <div{{ attributes.addClass(classes) }}>
   <div class="rich-text kdb-cludo__content">

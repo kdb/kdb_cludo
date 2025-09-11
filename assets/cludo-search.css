@@ -3,3 +3,7 @@
     max-width: 100%;
   }
 }
+
+.kdb-cludo.kdb-cludo--narrow {
+  max-width: 812px;
+}

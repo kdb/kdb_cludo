@@ -3,22 +3,22 @@ langcode: en
 status: true
 dependencies:
   config:
-    - field.storage.paragraph.field_kdb_cludo_profile
+    - field.storage.paragraph.field_kdb_cludo_wide
     - paragraphs.paragraphs_type.kdb_cludo
-  module:
-    - options
   enforced:
     module:
       - kdb_cludo
-id: paragraph.kdb_cludo.field_kdb_cludo_profile
-field_name: field_kdb_cludo_profile
+id: paragraph.kdb_cludo.field_kdb_cludo_wide
+field_name: field_kdb_cludo_wide
 entity_type: paragraph
 bundle: kdb_cludo
-label: 'Cludo Profile'
+label: 'Wide design'
 description: ''
 required: false
 translatable: false
-default_value: {  }
+default_value: {}
 default_value_callback: ''
-settings: {  }
-field_type: list_string
+settings:
+  on_label: 'On'
+  off_label: 'Off'
+field_type: boolean
