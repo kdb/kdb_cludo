@@ -8,6 +8,7 @@ use Drupal\drupal_typed\DrupalTyped;
 use Drupal\kdb_cludo\CludoProfile;
 use Drupal\node\NodeInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 /**
  * Base, used for embedding Cludo search pages and defining profiles.
@@ -41,6 +42,10 @@ abstract class CludoSearchBase extends ControllerBase {
    */
   public function page(Request $request): array {
     $config = $this->profile->getConfigSettings();
+
+    if (!$config['enabled']) {
+      throw new AccessDeniedHttpException();
+    }
 
     $breadcrumb = NULL;
     $cache_tags = ['kdb_cludo'];
