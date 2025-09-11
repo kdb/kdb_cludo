@@ -33,9 +33,9 @@ class CludoProfileService {
   /**
    * Finding a profile, by value lookup.
    */
-  public function getProfileByValue(string $value, string $key = 'id'): ?CludoProfile {
+  public function getProfile(string $id): ?CludoProfile {
     foreach ($this->getProfiles() as $profile) {
-      if ($value === $profile->$key) {
+      if ($id === $profile->id) {
         return $profile;
       }
     }

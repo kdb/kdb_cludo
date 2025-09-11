@@ -178,27 +178,24 @@ function kdb_cludo_page_attachments(array &$page): void {
 /**
  * Implements template_preprocess_page().
  *
- * If we are on a Cludo-search page, we replace the material search
+ * If we are on the main Cludo-search page, we replace the material search
  * toolbar with the cludo auto-complete form.
  * That way, the user can see and change their fulltext search in the header.
  */
 function kdb_cludo_preprocess_page(array &$variables): void {
   $route_name = \Drupal::routeMatch()->getRouteName();
 
-  // Let's do a simple check first, to avoid a somewhat-heavy look up on
-  // every single route.
-  if (!$route_name || !str_starts_with($route_name, 'kdb_cludo.search_page')) {
+  if ($route_name !== 'kdb_cludo.search_page.main') {
     return;
   }
 
   $variables['search']['header'] = [
     '#theme' => 'kdb_cludo_search_header',
-    '#default_input' => \Drupal::request()->query->get('cludoquery'),
     '#label' => t('Search', [], ['context' => 'kdb_cludo']),
   ];
 
   $service = DrupalTyped::service(CludoProfileService::class, 'kdb_cludo.cludo_profile');
-  $profile = $service->getProfileByValue($route_name, 'cludoRouteName');
+  $profile = $service->getProfile('main');
 
   if (!$profile) {
     return;
@@ -234,7 +231,7 @@ function kdb_cludo_preprocess_dpl_react_app(array &$variables): void {
   $input = urldecode($input);
 
   $profileService = DrupalTyped::service(CludoProfileService::class, 'kdb_cludo.cludo_profile');
-  $profile = $profileService->getProfileByValue('main');
+  $profile = $profileService->getProfile('main');
 
   if (!$profile) {
     return;
@@ -284,7 +281,7 @@ function kdb_cludo_preprocess_paragraph(array &$variables): void {
   $service = DrupalTyped::service(CludoProfileService::class, 'kdb_cludo.cludo_profile');
 
   $profile_id = $paragraph->get('field_kdb_cludo_profile')->getString();
-  $profile = $service->getProfileByValue($profile_id);
+  $profile = $service->getProfile($profile_id);
 
   if (!($profile instanceof CludoProfile)) {
     return;
@@ -379,7 +376,6 @@ function kdb_cludo_theme(array $existing, string $type, string $theme, string $p
     'kdb_cludo_search_header' => [
       'variables' => [
         'label' => t('Search content', [], ['context' => 'kdb_cludo']),
-        'default_input' => NULL,
       ],
     ],
   ];

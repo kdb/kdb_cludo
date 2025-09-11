@@ -54,7 +54,7 @@ class CludoApiService {
    */
   public function setProfile(CludoProfile|string $cludoProfile): void {
     if (is_string($cludoProfile)) {
-      $cludoProfile = $this->profileService->getProfileByValue($cludoProfile);
+      $cludoProfile = $this->profileService->getProfile($cludoProfile);
     }
 
     if ($cludoProfile instanceof CludoProfile) {
