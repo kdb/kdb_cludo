@@ -20,6 +20,11 @@ abstract class CludoSearchBase extends ControllerBase {
   public CludoProfile $profile;
 
   /**
+   * Display facets and filters.
+   */
+  public bool $showFilters = TRUE;
+
+  /**
    * Getting the title to be displayed in browser tab, and possibly on page.
    */
   public function getTitle(): ?string {
@@ -52,8 +57,9 @@ abstract class CludoSearchBase extends ControllerBase {
       }
     }
 
-    return [
-      '#theme' => 'kdb_cludo_search_page',
+    $return = [
+      '#theme' => $this->showFilters ? 'kdb_cludo_search_page' : 'kdb_cludo_search_page__simple',
+      '#profile' => $this->profile,
       '#title' => $config['show_title'] ? $this->getTitle() : NULL,
       '#breadcrumb' => $breadcrumb,
       '#attached' => [
@@ -69,8 +75,15 @@ abstract class CludoSearchBase extends ControllerBase {
       '#cache' => [
         'tags' => $cache_tags,
       ],
-
     ];
+
+    $placeholder = $config['input_placeholder'] ?? NULL;
+
+    if ($placeholder) {
+      $return['#label'] = $placeholder;
+    }
+
+    return $return;
   }
 
 }

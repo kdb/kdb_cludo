@@ -360,13 +360,19 @@ function kdb_cludo_theme_registry_alter(array &$theme_registry): void {
  * Implements hook_theme().
  */
 function kdb_cludo_theme(array $existing, string $type, string $theme, string $path): array {
-  return [
-    'kdb_cludo_search_page' => [
-      'variables' => [
-        'title' => NULL,
-        'breadcrumb' => NULL,
-      ],
+  $search_page = [
+    'variables' => [
+      'profile' => NULL,
+      'title' => NULL,
+      'breadcrumb' => NULL,
+      'label' => t('Search content', [], ['context' => 'kdb_cludo']),
+      'button_label' => t('Search', [], ['context' => 'kdb_cludo']),
     ],
+  ];
+
+  return [
+    'kdb_cludo_search_page' => $search_page,
+    'kdb_cludo_search_page__simple' => $search_page,
     'kdb_cludo_search_form' => [
       'variables' => [
         'label' => t('Search content', [], ['context' => 'kdb_cludo']),

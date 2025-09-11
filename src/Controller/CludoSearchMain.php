@@ -10,6 +10,8 @@ use Drupal\kdb_cludo\CludoProfile;
 class CludoSearchMain extends CludoSearchBase {
 
   public function __construct() {
+    $this->showFilters = FALSE;
+
     $this->profile = new CludoProfile(
       id: 'main',
       translatableLabel: 'Main search page (/search/web)',
