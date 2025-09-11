@@ -59,6 +59,10 @@ abstract class CludoSearchBase extends ControllerBase {
         $cache_tags[] = "node:{$breadcrumb_node->id()}";
 
         $breadcrumb = $service->getBreadcrumb($breadcrumb_node);
+
+        if (empty($breadcrumb->getLinks())) {
+          $breadcrumb->addLink($breadcrumb_node->toLink());
+        }
       }
     }
 

@@ -27,29 +27,31 @@ content:
       format: unicode-yes-no
       format_custom_false: ''
       format_custom_true: ''
-    third_party_settings: {  }
+    third_party_settings: {}
     weight: 1
     region: content
   field_kdb_cludo_breadcrumb:
-    type: entity_reference_label
+    type: boolean
     label: inline
     settings:
-      link: true
-    third_party_settings: {  }
-    weight: 2
+      format: unicode-yes-no
+      format_custom_false: ''
+      format_custom_true: ''
+    third_party_settings: {}
+    weight: 0
     region: content
   field_kdb_cludo_prefix:
     type: text_default
     label: hidden
-    settings: {  }
-    third_party_settings: {  }
-    weight: 0
+    settings: {}
+    third_party_settings: {}
+    weight: 2
     region: content
   field_kdb_cludo_profile:
     type: list_default
     label: inline
-    settings: {  }
-    third_party_settings: {  }
+    settings: {}
+    third_party_settings: {}
     weight: 3
     region: content
 hidden:

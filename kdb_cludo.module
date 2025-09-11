@@ -295,10 +295,12 @@ function kdb_cludo_preprocess_paragraph(array &$variables): void {
 
   $js_settings = $profile->getJsSettings();
   $js_settings['searchInputSelectors'] = ["#cludo-search-input-help"];
-  $breadcrumb_id = $paragraph->get('field_kdb_cludo_breadcrumb')->getString();
+  $show_breadcrumb = $paragraph->get('field_kdb_cludo_breadcrumb')->getString();
 
-  if (!empty($breadcrumb_id)) {
-    $js_settings['searchUrl'] .= "?breadcrumb=$breadcrumb_id";
+  if (!empty($show_breadcrumb)) {
+    $breadcrumb_node = \Drupal::routeMatch()->getParameter('node');
+
+    $js_settings['searchUrl'] .= "?breadcrumb={$breadcrumb_node?->id()}";
   }
 
   $config = $profile->getConfigSettings();

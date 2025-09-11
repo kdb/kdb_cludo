@@ -3,7 +3,7 @@ dependencies:
   enforced:
     module:
       - kdb_cludo
-customer_id: 2719
+customer_id: '2719'
 profiles:
   main:
     enabled: 1
@@ -13,17 +13,17 @@ profiles:
   article:
     enabled: 1
     show_title: 1
-    title: 'Artikler'
+    title: Artikler
     input_placeholder: 'Søg i bibliotekets artikler..'
   event:
     enabled: 1
     show_title: 1
-    title: 'Arrangementer'
+    title: Arrangementer
     input_placeholder: 'Søg i bibliotekets arrangementer..'
   help:
     enabled: 1
     show_title: 1
-    title: 'Hjælpeunivers'
+    title: Hjælpeunivers
     input_placeholder: 'Søg i hjælpeunivers..'
   help_en:
     enabled: 1
