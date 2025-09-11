@@ -29,6 +29,16 @@ class CludoApiService {
   protected CludoProfile $cludoProfile;
 
   /**
+   * Tells if we have the secrets available to actually call the API.
+   */
+  protected bool $isAvailable = FALSE;
+
+  /**
+   * The authentication key, used when calling the API.
+   */
+  protected ?string $authKey;
+
+  /**
    * {@inheritdoc}
    */
   public function __construct(
@@ -38,7 +48,15 @@ class CludoApiService {
     protected ClientInterface $client,
   ) {
     $this->config = $this->configFactory->get(CludoSettingsForm::CONFIG_SETTINGS_KEY);
-    $cludoProfile = $this->profileService->getProfileByValue('main');
+    $cludoProfile = $this->profileService->getProfile('main');
+
+    $customerId = $this->config->get('customer_id');
+    $apiKey = $this->config->get('api_key');
+
+    if ($customerId && $apiKey) {
+      $this->isAvailable = TRUE;
+      $this->authKey = base64_encode($this->config->get('customer_id') . ':' . $this->config->get('api_key'));
+    }
 
     if ($cludoProfile instanceof CludoProfile) {
       $this->cludoProfile = $cludoProfile;
@@ -47,6 +65,13 @@ class CludoApiService {
       $this->logger->error('Cludo Profile "main" not found.');
       throw new \InvalidArgumentException('Supplied cludoProfile is not valid.');
     }
+  }
+
+  /**
+   * Pre-checks if we have what we need to call the API.
+   */
+  public function isAvailable(): bool {
+    return $this->isAvailable;
   }
 
   /**
@@ -74,20 +99,32 @@ class CludoApiService {
    *   The JSON request body.
    */
   private function callApi(string $url, array $body): ResponseInterface {
-    $key = base64_encode($this->config->get('customer_id') . ':' . $this->config->get('api_key'));
+    if (!$this->isAvailable) {
+      $this->logger->error('Cludo API not available - please make sure customerId and apiKey has been set.');
+      throw new \RuntimeException('Cludo API not available');
+    }
 
-    return $this->client->request(
-      method: 'POST',
-      uri: $url,
-      options: [
-        'headers' => [
-          'Content-Type' => 'application/json',
-          'Authorization' => "Basic $key",
-        ],
-        'json' => $body,
-      ]
-    );
+    try {
+      return $this->client->request(
+        method: 'POST',
+        uri: $url,
+        options: [
+          'headers' => [
+            'Content-Type' => 'application/json',
+            'Authorization' => "Basic {$this->authKey}",
+          ],
+          'json' => $body,
+        ]
+      );
+    }
+    catch (\Exception $e) {
+      $this->logger->error('Could not call Cludo API (@url): @message', [
+        '@url' => $url,
+        '@message' => $e->getMessage(),
+      ]);
 
+      throw $e;
+    }
   }
 
   /**
