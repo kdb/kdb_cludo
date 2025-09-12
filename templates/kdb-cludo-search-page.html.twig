@@ -1,3 +1,9 @@
+{% set filters_classes = [
+  profile.cludoType == 'event' ? 'cludo-search-results__events-top ' : 'cludo-search-results__help-top',
+] %}
+
+{% set form_id = profile.cludoType == 'help' ? 'cludo-search-input-help' : 'cludo-search-input-subsearch' %}
+
 {{ breadcrumb }}
 
 {% if title %}
@@ -11,8 +17,8 @@
 <div id="cludo-search-results" class="cludo-search-results content-list">
 
   {% block filters %}
-    <div class="cludo-search-results__help-top">
-      <div class="cludo-input-form" role="search" id="cludo-search-input-subsearch">
+    <div class="{{ filters_classes|join(' ') }}">
+      <div class="cludo-input-form" role="search" id="{{ form_id }}">
         <label for="search-field" class="cludo-label">{{ button_label }}</label>
         <div class="cludo-input-form__input-wrapper">
           <input id="search-field" class="cludo-input-form__input" name="searchrequest" type="search" autocomplete="off" placeholder="{{ label }}" aria-autocomplete="list" aria-haspopup="true" title="{{ label }}" value="{{ default_input }}">

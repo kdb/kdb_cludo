@@ -66,8 +66,24 @@ abstract class CludoSearchBase extends ControllerBase {
       }
     }
 
+    $jsSettings = $this->profile->getJsSettings();
+
+    if ($this->showFilters) {
+      $theme = 'kdb_cludo_search_page';
+      $jsSettings['searchInputSelectors'] = ['#cludo-search-input-subsearch'];
+    }
+    else {
+      $theme = 'kdb_cludo_search_page__simple';
+      $jsSettings['searchInputSelectors'] = ['#cludo-search-input', '.cludo-header-search'];
+    }
+
+    if ($this->profile->cludoType === 'help') {
+      $jsSettings['searchInputSelectors'] = ['#cludo-search-input-help'];
+
+    }
+
     $return = [
-      '#theme' => $this->showFilters ? 'kdb_cludo_search_page' : 'kdb_cludo_search_page__simple',
+      '#theme' => $theme,
       '#profile' => $this->profile,
       '#title' => $config['show_title'] ? $this->getTitle() : NULL,
       '#breadcrumb' => $breadcrumb,
@@ -77,7 +93,7 @@ abstract class CludoSearchBase extends ControllerBase {
         ],
 
         'drupalSettings' => [
-          'kdb_cludo' => $this->profile->getJsSettings(),
+          'kdb_cludo' => $jsSettings,
         ],
 
       ],

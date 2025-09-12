@@ -104,7 +104,6 @@ class CludoProfile {
       'engineId' => $this->cludoEngineId,
       'language' => $this->cludoLanguage,
       'searchUrl' => $this->getCludoUrl()?->toString(),
-      'searchInputSelectors' => ['#cludo-search-input', '.cludo-header-search'],
     ];
   }
 
