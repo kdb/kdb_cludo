@@ -56,8 +56,6 @@ abstract class CludoSearchBase extends ControllerBase {
       $breadcrumb_node = $this->entityTypeManager()->getStorage('node')->load($breadcrumb_node_id);
 
       if ($breadcrumb_node instanceof NodeInterface) {
-        $cache_tags[] = "node:{$breadcrumb_node->id()}";
-
         $breadcrumb = $service->getBreadcrumb($breadcrumb_node);
 
         if (empty($breadcrumb->getLinks())) {
@@ -99,6 +97,7 @@ abstract class CludoSearchBase extends ControllerBase {
       ],
       '#cache' => [
         'tags' => $cache_tags,
+        'contexts' => ['url.query_args:breadcrumb'],
       ],
     ];
 
