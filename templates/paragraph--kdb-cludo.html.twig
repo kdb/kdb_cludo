@@ -1,5 +1,4 @@
 {% set classes = [
-  'content-list',
   'kdb-cludo',
   paragraph.get('field_kdb_cludo_wide').getString() != '1' ? 'kdb-cludo--narrow',
 ] %}
@@ -9,7 +8,7 @@
     {{ content|without('form') }}
   </div>
 
-  <div class="kdb-cludo__form">
+  <div class="kdb-cludo__form content-list">
     {{ content.form }}
   </div>
 </div>
