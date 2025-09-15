@@ -29,3 +29,8 @@ services:
 
   kdb_cludo.cludo_profile:
     class: Drupal\kdb_cludo\Services\CludoProfileService
+
+  kdb_cludo.config_overrides:
+    class: Drupal\kdb_cludo\Config\ConfigOverrides
+    tags:
+      - { name: config.factory.override, priority: 999 }
