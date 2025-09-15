@@ -17,7 +17,7 @@ class CludoSearchEvent extends CludoSearchBase {
       cludoRouteName: 'kdb_cludo.search_page.event',
       cludoEngineId: 14520,
       viewId: 'events',
-      viewRouteName: 'view.events.all',
+      viewRouteName: 'entity.eventinstance.collection',
     );
   }
 
