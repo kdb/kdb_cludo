@@ -9,6 +9,7 @@ use Drupal\Core\Path\PathValidatorInterface;
 use Drupal\dpl_breadcrumb\Services\BreadcrumbHelper;
 use Drupal\drupal_typed\DrupalTyped;
 use Drupal\kdb_cludo\CludoProfile;
+use Drupal\kdb_cludo\Services\CludoProfileService;
 use Drupal\node\NodeInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -16,25 +17,31 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 /**
  * Base, used for embedding Cludo search pages and defining profiles.
  */
-abstract class CludoSearchBase extends ControllerBase {
+class CludoSearchPage extends ControllerBase {
 
   /**
    * The related Cludo Profile, containing settings and config context.
    */
-  public CludoProfile $profile;
-
-  /**
-   * Display facets and filters.
-   */
-  public bool $showFilters = TRUE;
+  public ?CludoProfile $profile;
 
   /**
    * Getting the title to be displayed in browser tab, and possibly on page.
    */
-  public function getTitle(): string {
-    $config = $this->profile->getConfigSettings();
+  public function getTitle(Request $request): string {
+    $this->setCludoProfile($request);
 
-    return $config['title'] ?? '';
+    return $this->profile?->getTitle() ?? '';
+  }
+
+  /**
+   * Setting the Cludo profile, from attribute set in routing.yml.
+   */
+  protected function setCludoProfile(Request $request): ?CludoProfile {
+    $cludoProfileService = DrupalTyped::service(CludoProfileService::class, 'kdb_cludo.cludo_profile');
+    $cludoProfileId = $request->attributes->get('_cludoProfileId');
+    $this->profile = $cludoProfileService->getProfile($cludoProfileId);
+
+    return $this->profile;
   }
 
   /**
@@ -44,9 +51,9 @@ abstract class CludoSearchBase extends ControllerBase {
    *   Render array, for the page.
    */
   public function page(Request $request): array {
-    $config = $this->profile->getConfigSettings();
+    $this->setCludoProfile($request);
 
-    if (!$config['enabled']) {
+    if (!$this->profile || !$this->profile->getEnabled()) {
       throw new AccessDeniedHttpException();
     }
 
@@ -55,7 +62,6 @@ abstract class CludoSearchBase extends ControllerBase {
     $breadcrumb_node_id = $request->query->get('breadcrumb');
 
     if ($breadcrumb_node_id) {
-      ;
       $breadcrumb_node = $this->entityTypeManager()->getStorage('node')->load($breadcrumb_node_id);
 
       if ($breadcrumb_node instanceof NodeInterface) {
@@ -72,19 +78,18 @@ abstract class CludoSearchBase extends ControllerBase {
 
         if ($currentUrl) {
           $breadcrumb_links = array_merge(
-            [Link::fromTextAndUrl($this->getTitle(), $currentUrl)],
+            [Link::fromTextAndUrl($this->getTitle($request), $currentUrl)],
             $breadcrumb_links
           );
         }
 
         $breadcrumb = (new Breadcrumb())->setLinks($breadcrumb_links);
-
       }
     }
 
     $jsSettings = $this->profile->getJsSettings();
 
-    if ($this->showFilters) {
+    if ($this->profile->showFilters) {
       $theme = 'kdb_cludo_search_page';
       $jsSettings['searchInputSelectors'] = ['#cludo-search-input-subsearch'];
     }
@@ -95,13 +100,12 @@ abstract class CludoSearchBase extends ControllerBase {
 
     if ($this->profile->cludoType === 'help') {
       $jsSettings['searchInputSelectors'] = ['#cludo-search-input-help'];
-
     }
 
     $return = [
       '#theme' => $theme,
       '#profile' => $this->profile,
-      '#title' => $config['show_title'] ? $this->getTitle() : NULL,
+      '#title' => $this->profile->getShowTitle() ? $this->getTitle($request) : NULL,
       '#breadcrumb' => $breadcrumb,
       '#attached' => [
         'library' => [
@@ -119,7 +123,7 @@ abstract class CludoSearchBase extends ControllerBase {
       ],
     ];
 
-    $placeholder = $config['input_placeholder'] ?? NULL;
+    $placeholder = $this->profile->getInputPlaceholder();
 
     if ($placeholder) {
       $return['#label'] = $placeholder;

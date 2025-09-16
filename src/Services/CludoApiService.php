@@ -48,7 +48,11 @@ class CludoApiService {
     protected ClientInterface $client,
   ) {
     $this->config = $this->configFactory->get(CludoSettingsForm::CONFIG_SETTINGS_KEY);
-    $cludoProfile = $this->profileService->getProfile('main');
+
+    $profile = $this->profileService->getProfile('main');
+    if ($profile) {
+      $this->cludoProfile = $profile;
+    }
 
     $customerId = $this->config->get('customer_id');
     $apiKey = $this->config->get('api_key');
@@ -56,14 +60,6 @@ class CludoApiService {
     if ($customerId && $apiKey) {
       $this->isAvailable = TRUE;
       $this->authKey = base64_encode($this->config->get('customer_id') . ':' . $this->config->get('api_key'));
-    }
-
-    if ($cludoProfile instanceof CludoProfile) {
-      $this->cludoProfile = $cludoProfile;
-    }
-    else {
-      $this->logger->error('Cludo Profile "main" not found.');
-      throw new \InvalidArgumentException('Supplied cludoProfile is not valid.');
     }
   }
 

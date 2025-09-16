@@ -38,6 +38,7 @@ class CludoProfile {
     public string $cludoRouteName,
     public int $cludoEngineId,
     public string $cludoLanguage = 'da',
+    public bool $showFilters = TRUE,
     public ?string $viewId = NULL,
     public ?string $viewRouteName = NULL,
   ) {
