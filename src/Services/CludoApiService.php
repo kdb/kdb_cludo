@@ -142,4 +142,15 @@ class CludoApiService {
     return json_decode($response->getBody()->getContents(), TRUE);
   }
 
+  /**
+   * Finding the total results a Cludo search query returns.
+   *
+   * @param array<mixed> $body
+   *   The JSON request body.
+   */
+  public function getTotalResults(array $body): ?int {
+    $results = $this->callSearch($body);
+    return $results['TotalDocument'] ?? NULL;
+  }
+
 }

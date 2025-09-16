@@ -246,19 +246,20 @@ function kdb_cludo_preprocess_dpl_react_app(array &$variables): void {
 
     $apiService = DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api');
     $apiService->setProfile($profile);
-    $hasWebResults = TRUE;
-    $totalResults = NULL;
 
-    if ($apiService->isAvailable()) {
-      $cludoResults = $apiService->callSearch(['query' => $input]);
-      $hasWebResults = !empty($cludoResults['TotalDocument']);
-      $totalResults = $cludoResults['TotalDocument'] ?? NULL;
+    try {
+      $totalResults = $apiService->getTotalResults(['query' => $input]);
+    }
+    catch (\Exception) {
+      $totalResults = NULL;
     }
 
     $variables['attributes']['data-web-search-config'] = Safe\json_encode([
       'webSearchText' => $input,
       'webSearchUrl' => $url->toString() . "#?cludoquery=$input",
-      'hasWebSearchResults' => $hasWebResults,
+      // If we could not get results count, due to an unavailable API service,
+      // we will just show a simple link.
+      'hasWebSearchResults' => ($totalResults !== 0),
       'webSearchTotal' => $totalResults,
     ]);
   }
