@@ -201,9 +201,7 @@ function kdb_cludo_preprocess_page(array &$variables): void {
     return;
   }
 
-  $config = $profile->getConfigSettings();
-
-  $variables['search']['header']['#label'] = $config['input_placeholder'] ?? NULL;
+  $variables['search']['header']['#label'] = $profile->getInputPlaceholder();
 }
 
 /**
@@ -237,10 +235,7 @@ function kdb_cludo_preprocess_dpl_react_app(array &$variables): void {
     return;
   }
 
-  $config = $profile->getConfigSettings();
-  $enabled = $config['enabled'] ?? NULL;
-
-  if (!$enabled) {
+  if (!$profile->getEnabled()) {
     return;
   }
 
@@ -303,13 +298,12 @@ function kdb_cludo_preprocess_paragraph(array &$variables): void {
     $js_settings['searchUrl'] .= "?breadcrumb={$breadcrumb_node?->id()}";
   }
 
-  $config = $profile->getConfigSettings();
-
+  $input_placeholder = $profile->getInputPlaceholder();
   $default_label = t('Search', [], ['context' => 'kdb_cludo']);
 
   $variables['content']['form'] = [
     '#theme' => 'kdb_cludo_search_form',
-    '#label' => $config['input_placeholder'] ?? $default_label,
+    '#label' => !empty($input_placeholder) ? $input_placeholder : $default_label,
     '#button_label' => $default_label,
     '#attached' => [
       'library' => [

@@ -43,9 +43,7 @@ class SearchPageRedirects implements EventSubscriberInterface {
         continue;
       }
 
-      $config = $profile->getConfigSettings();
-
-      $enabled = $config['enabled'] ?? NULL;
+      $enabled = $profile->getEnabled();
 
       if ($routeName === $profile->cludoRouteName && !$enabled) {
         $redirectUrl = $profile->getViewUrl();

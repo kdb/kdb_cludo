@@ -20,9 +20,16 @@ class CludoProfile {
   public ?TranslatableMarkup $label;
 
   /**
-   * The config settings.
+   * The general config, for the entire kdb_cludo module.
    */
   public ImmutableConfig $config;
+
+  /**
+   * The config-saved settings for this specific profile.
+   *
+   * @var array<mixed>
+   */
+  public array $profileSettings;
 
   public function __construct(
     public string $id,
@@ -37,6 +44,7 @@ class CludoProfile {
     if (!empty($this->translatableLabel)) {
       $configService = DrupalTyped::service(ConfigFactoryInterface::class, 'config.factory');
       $this->config = $configService->get(CludoSettingsForm::CONFIG_SETTINGS_KEY);
+      $this->profileSettings = $this->config->get("profiles.{$this->id}") ?? [];
 
       // @codingStandardsIgnoreLine Drupal.Semantics.FunctionT.StringLiteralsOnly
       $this->label = new TranslatableMarkup($this->translatableLabel);
@@ -82,17 +90,35 @@ class CludoProfile {
   }
 
   /**
-   * Getting the editor-saved config settings for this profile.
-   *
-   * @return array<mixed>
-   *   Config values.
+   * Getting editor-set setting: enabled.
    */
-  public function getConfigSettings(): array {
-    return $this->config->get("profiles.{$this->id}") ?? [];
+  public function getEnabled(): bool {
+    return $this->profileSettings['enabled'] ?? FALSE;
   }
 
   /**
-   * Child classes override this to provide page-specific settings.
+   * Getting editor-set setting: show title on page.
+   */
+  public function getShowTitle(): bool {
+    return $this->profileSettings['show_title'] ?? FALSE;
+  }
+
+  /**
+   * Getting editor-set setting: page title.
+   */
+  public function getTitle(): string {
+    return $this->profileSettings['title'] ?? '';
+  }
+
+  /**
+   * Getting editor-set setting: input placeholder text.
+   */
+  public function getInputPlaceholder(): string {
+    return $this->profileSettings['input_placeholder'] ?? '';
+  }
+
+  /**
+   * The JS settings that need to be sent along for Cludo embedding to work.
    *
    * @return array<mixed>
    *   Values to be passed to drupalSettings.
