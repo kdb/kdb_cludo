@@ -1,0 +1,55 @@
+---
+kdb_cludo.general_settings:
+  path: '/admin/config/kdb-cludo/settings'
+  defaults:
+    _form: '\Drupal\kdb_cludo\Form\CludoSettingsForm'
+    _title: 'Cludo settings for KK'
+  requirements:
+    _permission: 'administer kdb_cludo'
+  options:
+    _admin_route: TRUE
+
+kdb_cludo.search_page.main:
+  path: '/indhold/soeg'
+  defaults:
+    _controller: '\Drupal\kdb_cludo\Controller\CludoSearchPage::page'
+    _title_callback: '\Drupal\kdb_cludo\Controller\CludoSearchPage::getTitle'
+    _cludoProfileId: 'main'
+  requirements:
+    _permission: 'access content'
+
+kdb_cludo.search_page.help:
+  path: '/hjaelp/soeg'
+  defaults:
+    _controller: '\Drupal\kdb_cludo\Controller\CludoSearchPage::page'
+    _title_callback: '\Drupal\kdb_cludo\Controller\CludoSearchPage::getTitle'
+    _cludoProfileId: 'help'
+  requirements:
+    _permission: 'access content'
+
+kdb_cludo.search_page.help_english:
+  path: '/help/search'
+  defaults:
+    _controller: '\Drupal\kdb_cludo\Controller\CludoSearchPage::page'
+    _title_callback: '\Drupal\kdb_cludo\Controller\CludoSearchPage::getTitle'
+    _cludoProfileId: 'help_en'
+  requirements:
+    _permission: 'access content'
+
+kdb_cludo.search_page.event:
+  path: '/arrangementer/soeg'
+  defaults:
+    _controller: '\Drupal\kdb_cludo\Controller\CludoSearchPage::page'
+    _title_callback: '\Drupal\kdb_cludo\Controller\CludoSearchPage::getTitle'
+    _cludoProfileId: 'event'
+  requirements:
+    _permission: 'access content'
+
+kdb_cludo.search_page.article:
+  path: '/artikler/soeg'
+  defaults:
+    _controller: '\Drupal\kdb_cludo\Controller\CludoSearchPage::page'
+    _title_callback: '\Drupal\kdb_cludo\Controller\CludoSearchPage::getTitle'
+    _cludoProfileId: 'article'
+  requirements:
+    _permission: 'access content'

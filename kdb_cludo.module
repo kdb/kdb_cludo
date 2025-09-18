@@ -5,10 +5,17 @@
  * Integration with Cludo search.
  */
 
+use Drupal\Core\Url;
 use Drupal\Core\Entity\FieldableEntityInterface;
+use Drupal\dpl_search\DplSearchSettings;
+use Drupal\drupal_typed\DrupalTyped;
 use Drupal\file\FileInterface;
 use Drupal\image\Entity\ImageStyle;
+use Drupal\kdb_cludo\CludoProfile;
+use Drupal\kdb_cludo\Services\CludoApiService;
+use Drupal\kdb_cludo\Services\CludoProfileService;
 use Drupal\media\MediaInterface;
+use Drupal\paragraphs\ParagraphInterface;
 
 /**
  * Getting the teaser-list image of an entity as a Cludo-readable metatag.
@@ -166,4 +173,246 @@ function kdb_cludo_page_attachments(array &$page): void {
     $page['#attached']['html_head'][] = [$image_metatag, $image_metatag_key];
   }
 
+}
+
+/**
+ * Implements template_preprocess_page().
+ *
+ * If we are on the main Cludo-search page, we replace the material search
+ * toolbar with the cludo auto-complete form.
+ * That way, the user can see and change their fulltext search in the header.
+ */
+function kdb_cludo_preprocess_page(array &$variables): void {
+  $route_name = \Drupal::routeMatch()->getRouteName();
+
+  if ($route_name !== 'kdb_cludo.search_page.main') {
+    return;
+  }
+
+  $variables['search']['header'] = [
+    '#theme' => 'kdb_cludo_search_header',
+    '#label' => t('Search', [], ['context' => 'kdb_cludo']),
+    '#placeholder' => t('Search content', [], ['context' => 'kdb_cludo']),
+  ];
+
+  $service = DrupalTyped::service(CludoProfileService::class, 'kdb_cludo.cludo_profile');
+  $profile = $service->getProfile('main');
+
+  if (!$profile) {
+    return;
+  }
+
+  $variables['search']['header']['#label'] = $profile->getInputLabel();
+  $variables['search']['header']['#placeholder'] = $profile->getInputPlaceholder();
+}
+
+/**
+ * Implements hook_preprocess().
+ *
+ * Add a link to the editorial web search, on the material search page,
+ * if we find any results from the search string query.
+ */
+function kdb_cludo_preprocess_dpl_react_app(array &$variables): void {
+  $name = $variables['name'] ?? NULL;
+
+  if ($name !== 'search-result') {
+    return;
+  }
+
+  $variables['#cache']['tags'][] = 'kdb_cludo';
+
+  // Getting the input that was material-searched for.
+  $input = \Drupal::request()->query->get(DplSearchSettings::MATERIAL_QUERY_KEY);
+
+  if (empty($input) || !is_string($input)) {
+    return;
+  }
+
+  $input = urldecode($input);
+
+  $profileService = DrupalTyped::service(CludoProfileService::class, 'kdb_cludo.cludo_profile');
+  $profile = $profileService->getProfile('main');
+
+  if (!$profile) {
+    return;
+  }
+
+  if (!$profile->getEnabled()) {
+    return;
+  }
+
+  $url = $profile->getCludoUrl();
+
+  if ($url instanceof Url) {
+    $url->setAbsolute(TRUE);
+
+    $apiService = DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api');
+    $apiService->setProfile($profile);
+
+    try {
+      $totalResults = $apiService->getTotalResults(['query' => $input]);
+    }
+    catch (\Exception) {
+      $totalResults = NULL;
+    }
+
+    $variables['attributes']['data-web-search-config'] = Safe\json_encode([
+      'webSearchText' => $input,
+      'webSearchUrl' => $url->toString() . "#?cludoquery=$input",
+      // If we could not get results count, due to an unavailable API service,
+      // we will just show a simple link.
+      'hasWebSearchResults' => ($totalResults !== 0),
+      'webSearchTotal' => $totalResults,
+    ]);
+  }
+}
+
+/**
+ * Implements hook_preprocess().
+ */
+function kdb_cludo_preprocess_paragraph(array &$variables): void {
+  $paragraph = $variables['paragraph'] ?? NULL;
+  $view_mode = $variables['view_mode'] ?? NULL;
+
+  if (
+    $view_mode === 'preview' ||
+    !($paragraph instanceof ParagraphInterface) ||
+    $paragraph->bundle() !== 'kdb_cludo'
+  ) {
+    return;
+  }
+
+  $service = DrupalTyped::service(CludoProfileService::class, 'kdb_cludo.cludo_profile');
+
+  $profile_id = $paragraph->get('field_kdb_cludo_profile')->getString();
+  $profile = $service->getProfile($profile_id);
+
+  if (!($profile instanceof CludoProfile)) {
+    return;
+  }
+
+  $js_settings = $profile->getJsSettings();
+  $js_settings['searchInputSelectors'] = ["#cludo-search-input-help"];
+  $show_breadcrumb = $paragraph->get('field_kdb_cludo_breadcrumb')->getString();
+
+  if (!empty($show_breadcrumb)) {
+    $breadcrumb_node = \Drupal::routeMatch()->getParameter('node');
+
+    $js_settings['searchUrl'] .= "?breadcrumb={$breadcrumb_node?->id()}";
+  }
+
+  $input_placeholder = $profile->getInputPlaceholder();
+  $default_label = t('Search', [], ['context' => 'kdb_cludo']);
+
+  $variables['content']['form'] = [
+    '#theme' => 'kdb_cludo_search_form',
+    '#label' => !empty($input_placeholder) ? $input_placeholder : $default_label,
+    '#button_label' => $default_label,
+    '#attached' => [
+      'library' => [
+        'kdb_cludo/base',
+      ],
+      'drupalSettings' => [
+        'kdb_cludo' => $js_settings,
+      ],
+    ],
+    '#context' => [
+      'tags' => ['kdb_cludo'],
+    ],
+  ];
+
+}
+
+/**
+ * Expose the profiles as options for paragraph field.
+ *
+ * @return array<mixed>
+ *   The profiles, in a format that <options> field understand.
+ */
+function kdb_cludo_profile_options(): array {
+  $service = DrupalTyped::service(CludoProfileService::class, 'kdb_cludo.cludo_profile');
+  $profiles = $service->getProfiles();
+
+  $values = [];
+
+  foreach ($profiles as $profile) {
+    $values[$profile->id] = $profile->label;
+  }
+
+  return $values;
+}
+
+/**
+ * Implements hook_theme_registry_alter().
+ *
+ * Paragraphs provides the base 'paragraph' theme hook and the automatic
+ * suggestion 'paragraph__{bundle}'. We reuse its variables and just point
+ * the suggestion to our module's template path.
+ */
+function kdb_cludo_theme_registry_alter(array &$theme_registry): void {
+  $suggestion = 'paragraph__kdb_cludo';
+
+  if (isset($theme_registry['paragraph'])) {
+    $theme_registry[$suggestion] = $theme_registry['paragraph'];
+    $theme_registry[$suggestion]['template'] = 'paragraph--kdb-cludo';
+
+    $path_resolver = \Drupal::service('extension.path.resolver');
+    $theme_registry[$suggestion]['path'] = $path_resolver->getPath('module', 'kdb_cludo') . '/templates';
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function kdb_cludo_theme(array $existing, string $type, string $theme, string $path): array {
+  $search_page = [
+    'variables' => [
+      'profile' => NULL,
+      'title' => NULL,
+      'breadcrumb' => NULL,
+      'label' => t('Search content', [], ['context' => 'kdb_cludo']),
+      'button_label' => t('Search', [], ['context' => 'kdb_cludo']),
+    ],
+  ];
+
+  return [
+    'kdb_cludo_search_page' => $search_page,
+    'kdb_cludo_search_page__simple' => $search_page,
+    'kdb_cludo_search_form' => [
+      'variables' => [
+        'label' => t('Search content', [], ['context' => 'kdb_cludo']),
+        'button_label' => t('Search', [], ['context' => 'kdb_cludo']),
+      ],
+    ],
+    'kdb_cludo_search_header' => [
+      'variables' => [
+        'label' => t('Search', [], ['context' => 'kdb_cludo']),
+        'placeholder' => t('Search content', [], ['context' => 'kdb_cludo']),
+      ],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_module_implements_alter().
+ *
+ * Make sure the page_process happens last, after any other contrib
+ * modules. This can be necessary to override dpl module functionality.
+ */
+function kdb_cludo_module_implements_alter(array &$implementations, string $hook): void {
+  $target_hooks = [
+    // To make sure that our custom Cludo search header shows up.
+    'template_preprocess_page',
+    // Alter the link shown on material search.
+    'template_preprocess_dpl_react_app',
+  ];
+
+  if (!in_array($hook, $target_hooks)) {
+    return;
+  }
+
+  // Move our hook implementation to the bottom of the list, to run last.
+  $group = $implementations['kdb_cludo'];
+  unset($implementations['kdb_cludo']);
+  $implementations['kdb_cludo'] = $group;
 }

@@ -1,0 +1,6 @@
+---
+kdb_cludo.general_settings:
+  title: 'Cludo (bibliotek.kk.dk)'
+  route_name: kdb_cludo.general_settings
+  parent: system.admin_config_search
+  menu_name: admin

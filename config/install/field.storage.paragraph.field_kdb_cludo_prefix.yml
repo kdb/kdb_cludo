@@ -1,0 +1,22 @@
+---
+langcode: en
+status: true
+dependencies:
+  module:
+    - paragraphs
+    - text
+  enforced:
+    module:
+      - kdb_cludo
+id: paragraph.field_kdb_cludo_prefix
+field_name: field_kdb_cludo_prefix
+entity_type: paragraph
+type: text_long
+settings: {}
+module: text
+locked: false
+cardinality: 1
+translatable: true
+indexes: {}
+persist_with_no_fields: false
+custom_storage: false

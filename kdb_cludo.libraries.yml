@@ -1,0 +1,11 @@
+---
+base:
+  css:
+    theme:
+      'assets/cludo-search.css': {}
+      'https://customer.cludo.com/templates/2719/14490/dist/styles/cludo-search-results.css':
+        {}
+  js:
+    assets/cludo-search-init.js: {}
+    'https://customer.cludo.com/scripts/bundles/search-script.min.js':
+      { type: external, attributes: { defer: true } }

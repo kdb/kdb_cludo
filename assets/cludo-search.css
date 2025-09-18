@@ -1,0 +1,11 @@
+.kdb-cludo {
+  margin: auto;
+}
+
+.kdb-cludo .kdb-cludo__content {
+  max-width: 100%;
+}
+
+.kdb-cludo.kdb-cludo--narrow {
+  max-width: 812px;
+}

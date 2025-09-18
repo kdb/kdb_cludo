@@ -1,0 +1,14 @@
+{% set classes = [
+  'kdb-cludo',
+  paragraph.get('field_kdb_cludo_wide').getString() != '1' ? 'kdb-cludo--narrow',
+] %}
+
+<div{{ attributes.addClass(classes) }}>
+  <div class="rich-text kdb-cludo__content">
+    {{ content|without('form') }}
+  </div>
+
+  <div class="kdb-cludo__form content-list">
+    {{ content.form }}
+  </div>
+</div>

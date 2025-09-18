@@ -1,0 +1,58 @@
+---
+langcode: en
+status: true
+dependencies:
+  config:
+    - core.entity_view_mode.paragraph.preview
+    - field.field.paragraph.kdb_cludo.field_kdb_cludo_wide
+    - field.field.paragraph.kdb_cludo.field_kdb_cludo_breadcrumb
+    - field.field.paragraph.kdb_cludo.field_kdb_cludo_prefix
+    - field.field.paragraph.kdb_cludo.field_kdb_cludo_profile
+    - paragraphs.paragraphs_type.kdb_cludo
+  module:
+    - options
+    - text
+  enforced:
+    module:
+      - kdb_cludo
+id: paragraph.kdb_cludo.preview
+targetEntityType: paragraph
+bundle: kdb_cludo
+mode: preview
+content:
+  field_kdb_cludo_wide:
+    type: boolean
+    label: inline
+    settings:
+      format: unicode-yes-no
+      format_custom_false: ''
+      format_custom_true: ''
+    third_party_settings: {}
+    weight: 1
+    region: content
+  field_kdb_cludo_breadcrumb:
+    type: boolean
+    label: inline
+    settings:
+      format: unicode-yes-no
+      format_custom_false: ''
+      format_custom_true: ''
+    third_party_settings: {}
+    weight: 0
+    region: content
+  field_kdb_cludo_prefix:
+    type: text_default
+    label: hidden
+    settings: {}
+    third_party_settings: {}
+    weight: 2
+    region: content
+  field_kdb_cludo_profile:
+    type: list_default
+    label: inline
+    settings: {}
+    third_party_settings: {}
+    weight: 3
+    region: content
+hidden:
+  search_api_excerpt: true

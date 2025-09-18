@@ -1,8 +1,36 @@
 ---
 services:
-    kdb_cludo.event_instance_canonical_metatag:
-      class: Drupal\kdb_cludo\EventSubscriber\EventInstanceCanonicalMetatag
-      arguments:
-        - '@dpl_event.reoccurring_date_formatter'
-      tags:
-        - { name: event_subscriber }
+  _defaults:
+    autowire: true
+
+  kdb_cludo.logger:
+    parent: logger.channel_base
+    arguments: ['kdb_cludo']
+
+  kdb_cludo.cludo_api:
+    class: Drupal\kdb_cludo\Services\CludoApiService
+    arguments:
+      - '@kdb_cludo.logger'
+      - '@kdb_cludo.cludo_profile'
+
+  kdb_cludo.event_instance_canonical_metatag:
+    class: Drupal\kdb_cludo\EventSubscriber\EventInstanceCanonicalMetatag
+    arguments:
+      - '@dpl_event.reoccurring_date_formatter'
+    tags:
+      - { name: event_subscriber }
+
+  kdb_cludo.search_page_redirects:
+    class: Drupal\kdb_cludo\EventSubscriber\SearchPageRedirects
+    arguments:
+      - '@kdb_cludo.cludo_profile'
+    tags:
+      - { name: event_subscriber }
+
+  kdb_cludo.cludo_profile:
+    class: Drupal\kdb_cludo\Services\CludoProfileService
+
+  kdb_cludo.config_overrides:
+    class: Drupal\kdb_cludo\Config\ConfigOverrides
+    tags:
+      - { name: config.factory.override, priority: 999 }
