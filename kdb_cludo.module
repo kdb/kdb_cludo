@@ -192,6 +192,7 @@ function kdb_cludo_preprocess_page(array &$variables): void {
   $variables['search']['header'] = [
     '#theme' => 'kdb_cludo_search_header',
     '#label' => t('Search', [], ['context' => 'kdb_cludo']),
+    '#placeholder' => t('Search content', [], ['context' => 'kdb_cludo']),
   ];
 
   $service = DrupalTyped::service(CludoProfileService::class, 'kdb_cludo.cludo_profile');
@@ -201,7 +202,8 @@ function kdb_cludo_preprocess_page(array &$variables): void {
     return;
   }
 
-  $variables['search']['header']['#label'] = $profile->getInputPlaceholder();
+  $variables['search']['header']['#label'] = $profile->getInputLabel();
+  $variables['search']['header']['#placeholder'] = $profile->getInputPlaceholder();
 }
 
 /**
@@ -384,7 +386,8 @@ function kdb_cludo_theme(array $existing, string $type, string $theme, string $p
     ],
     'kdb_cludo_search_header' => [
       'variables' => [
-        'label' => t('Search content', [], ['context' => 'kdb_cludo']),
+        'label' => t('Search', [], ['context' => 'kdb_cludo']),
+        'placeholder' => t('Search content', [], ['context' => 'kdb_cludo']),
       ],
     ],
   ];

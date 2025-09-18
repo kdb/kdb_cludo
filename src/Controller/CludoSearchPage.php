@@ -107,6 +107,7 @@ class CludoSearchPage extends ControllerBase {
       '#profile' => $this->profile,
       '#title' => $this->profile->getShowTitle() ? $this->getTitle($request) : NULL,
       '#breadcrumb' => $breadcrumb,
+      '#button_label' => $this->profile->getInputLabel(),
       '#attached' => [
         'library' => [
           'kdb_cludo/base',

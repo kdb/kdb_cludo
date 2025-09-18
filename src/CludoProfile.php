@@ -112,6 +112,13 @@ class CludoProfile {
   }
 
   /**
+   * Getting editor-set setting: input label text.
+   */
+  public function getInputLabel(): string {
+    return $this->profileSettings['input_label'] ?? '';
+  }
+
+  /**
    * Getting editor-set setting: input placeholder text.
    */
   public function getInputPlaceholder(): string {

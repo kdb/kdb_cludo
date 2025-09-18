@@ -83,6 +83,12 @@ class CludoSettingsForm extends ConfigFormBase {
         '#title' => $this->t('Page title', [], ['context' => 'kdb_cludo']),
         '#placeholder' => $default_title,
       ],
+      'input_label' => [
+        '#type' => 'textfield',
+        '#required' => TRUE,
+        '#title' => $this->t('Input-field label', [], ['context' => 'kdb_cludo']),
+        '#placeholder' => $default_title,
+      ],
       'input_placeholder' => [
         '#type' => 'textfield',
         '#required' => TRUE,
