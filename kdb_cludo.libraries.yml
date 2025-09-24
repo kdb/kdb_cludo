@@ -7,5 +7,3 @@ base:
         {}
   js:
     assets/cludo-search-init.js: {}
-    'https://customer.cludo.com/scripts/bundles/search-script.min.js':
-      { type: external, attributes: { defer: true } }

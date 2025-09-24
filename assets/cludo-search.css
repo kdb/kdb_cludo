@@ -1,4 +1,5 @@
 .kdb-cludo {
+  max-width: 1124px;
   margin: auto;
 }
 
@@ -8,4 +9,9 @@
 
 .kdb-cludo.kdb-cludo--narrow {
   max-width: 812px;
+}
+
+.kdb-cludo__form {
+  padding: 0 16px;
+  box-sizing: border-box;
 }

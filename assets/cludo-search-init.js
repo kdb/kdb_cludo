@@ -15,14 +15,20 @@
   // The external Cludo scripts need to be placed after the init script, and
   // also need customer and engine IDs.
   // We'll fix both issues by adding them as dynamic script tags.
+  const searchScript = document.createElement('script');
+  searchScript.src =
+    'https://customer.cludo.com/scripts/bundles/search-script.min.js?drupal';
+  searchScript.defer = true;
+  document.body.appendChild(searchScript);
+
   const searchResultsScript = document.createElement('script');
-  searchResultsScript.src = `https://customer.cludo.com/templates/${settings.customerId}/${mainEngineId}/dist/js/cludo-search-results.js`;
+  searchResultsScript.src = `https://customer.cludo.com/templates/${settings.customerId}/${mainEngineId}/dist/js/cludo-search-results.js?drupal`;
   searchResultsScript.defer = true;
   document.body.appendChild(searchResultsScript);
 
   const managerScript = document.createElement('script');
   managerScript.src =
-    'https://customer.cludo.com/scripts/bundles/experiences/manager.js';
+    'https://customer.cludo.com/scripts/bundles/experiences/manager.js?drupal';
   managerScript.defer = true;
   managerScript.id = 'cludo-experience-manager';
   managerScript.setAttribute('data-cid', settings.customerId);
