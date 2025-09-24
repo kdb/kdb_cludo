@@ -88,3 +88,10 @@ function kdb_cludo_uninstall(): string {
   $return = _kdb_cludo_config_auto_unignore_entites(['*kdb_cludo*']);
   return $return;
 }
+
+/**
+ * Add custom fields for marking content as english.
+ */
+function kdb_cludo_update_10001(): string {
+  return _kdb_cludo_install_fields();
+}
