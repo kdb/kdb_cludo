@@ -90,8 +90,21 @@ function kdb_cludo_uninstall(): string {
 }
 
 /**
- * Add custom fields for marking content as english.
+ * Add new default values to kdb_cludo config settings.
  */
 function kdb_cludo_update_10001(): string {
+  $settings = \Drupal::configFactory()->getEditable('kdb_cludo.settings');
+  $settings->set('enable_url_pushing', 0);
+  $settings->set('crawler_id', 10904);
+  $settings->set('crawler_id_english', 10905);
+  $settings->save();
+
+  return 'Cludo URL pushing default values set.';
+}
+
+/**
+ * Add custom fields for marking content as english.
+ */
+function kdb_cludo_update_10002(): string {
   return _kdb_cludo_install_fields();
 }
