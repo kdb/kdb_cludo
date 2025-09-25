@@ -182,7 +182,7 @@ class CludoApiService {
     $enabled = $this->config->get('enable_url_pushing');
 
     if (empty($enabled)) {
-      $this->logger->warning('Could not push: Cludo URL pushing is disabled.');
+      $this->logger->info('Cludo URL pushing is disabled - skipping pushing node.');
       return FALSE;
     }
 
