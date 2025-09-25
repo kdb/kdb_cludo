@@ -114,14 +114,12 @@ class CludoSettingsForm extends ConfigFormBase {
         '#default_value' => $config->get("customer_id"),
       ],
       'api_key' => [
-        [
-          '#type' => 'textfield',
-          '#title' => $this->t('Cludo API key', [], ['context' => 'kdb_cludo']),
-          '#description' => $this->t('<a href="@url">Cludo documentation</a>', [
-            '@url' => 'https://docs.cludo.com/#authentication_basic',
-          ], ['context' => 'kdb_cludo']),
-          '#default_value' => $config->get("api_key"),
-        ],
+        '#type' => 'textfield',
+        '#title' => $this->t('Cludo API key', [], ['context' => 'kdb_cludo']),
+        '#description' => $this->t('<a href="@url">Cludo documentation</a>', [
+          '@url' => 'https://docs.cludo.com/#authentication_basic',
+        ], ['context' => 'kdb_cludo']),
+        '#default_value' => $config->get("api_key"),
       ],
     ];
 
@@ -184,6 +182,8 @@ class CludoSettingsForm extends ConfigFormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $config = $this->config(self::CONFIG_SETTINGS_KEY);
+
+    if (true) {}
 
     $config->set('customer_id', $form_state->getValue('customer_id'));
     $config->set('api_key', $form_state->getValue('api_key'));
