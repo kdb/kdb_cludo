@@ -12,6 +12,7 @@ use GuzzleHttp\ClientInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 use function Safe\json_decode;
+use function Safe\json_encode;
 
 /**
  * Service for calling the Cludo API.
@@ -241,6 +242,23 @@ class CludoApiService {
     if (!$responseOK) {
       $this->logger->error('Cludo URL pushing failed. Response: @message', [
         '@message' => $response->getBody()->getContents(),
+      ]);
+    }
+    elseif ($delete) {
+      $this->logger->info('Successfully requested Cludo to delete @type @uuid from crawler @crawlerId. Payload: @payload', [
+        '@type' => $entity->getEntityTypeId(),
+        '@uuid' => $entity->uuid(),
+        '@crawlerId' => $crawlerId,
+        '@payload' => json_encode($payload),
+      ]);
+    }
+    else {
+      $this->logger->info('Successfully requested Cludo to index @type @uuid to crawler @crawlerId. Payload: @payload', [
+        '@type' => $entity->getEntityTypeId(),
+        '@uuid' => $entity->uuid(),
+        '@crawlerId' => $crawlerId,
+        '@payload' => json_encode($payload),
+
       ]);
     }
 
