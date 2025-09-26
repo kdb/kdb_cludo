@@ -175,6 +175,10 @@ function _kdb_cludo_entity_save(EntityInterface $entity): void {
     return;
   }
 
+  if (!$entity->isPublished()) {
+    return;
+  }
+
   $apiService = DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api');
   $apiService->addEntityData($entity);
 }
