@@ -5,8 +5,11 @@
  * Integration with Cludo search.
  */
 
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Url;
 use Drupal\Core\Entity\FieldableEntityInterface;
+use Drupal\dpl_event\Entity\EventInstance;
 use Drupal\dpl_search\DplSearchSettings;
 use Drupal\drupal_typed\DrupalTyped;
 use Drupal\file\FileInterface;
@@ -15,6 +18,7 @@ use Drupal\kdb_cludo\CludoProfile;
 use Drupal\kdb_cludo\Services\CludoApiService;
 use Drupal\kdb_cludo\Services\CludoProfileService;
 use Drupal\media\MediaInterface;
+use Drupal\node\NodeInterface;
 use Drupal\paragraphs\ParagraphInterface;
 
 /**
@@ -116,6 +120,67 @@ function _kdb_cludo_get_reference_label_metatag(FieldableEntityInterface $entity
       'content' => implode(', ', $labels),
     ],
   ];
+}
+
+/**
+ * Implements hook_entity_base_field_info().
+ *
+ * Creating our custom programmatic fields.
+ *
+ * @return \Drupal\Core\Field\FieldDefinitionInterface[]
+ *   The field definitions.
+ */
+function kdb_cludo_entity_base_field_info(EntityTypeInterface $entity_type): array {
+  $fields = [];
+
+  // Create new fields for node bundle.
+  if ($entity_type->id() === 'node') {
+    $fields = CludoApiService::getFieldDefinitions();
+  }
+
+  return $fields;
+}
+
+/**
+ * Implements hook_entity_predelete().
+ */
+function kdb_cludo_entity_predelete(EntityInterface $entity): void {
+  if (!($entity instanceof NodeInterface) && !($entity instanceof EventInstance)) {
+    return;
+  }
+
+  $apiService = DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api');
+  $apiService->removeEntityData($entity);
+}
+
+/**
+ * Implements hook_entity_insert().
+ */
+function kdb_cludo_entity_update(EntityInterface $entity): void {
+  _kdb_cludo_entity_save($entity);
+}
+
+/**
+ * Implements hook_entity_update().
+ */
+function kdb_cludo_entity_insert(EntityInterface $entity): void {
+  _kdb_cludo_entity_save($entity);
+}
+
+/**
+ * Triggered after a node is saved - either by hook_insert or hook_update.
+ */
+function _kdb_cludo_entity_save(EntityInterface $entity): void {
+  if (!($entity instanceof NodeInterface) && !($entity instanceof EventInstance)) {
+    return;
+  }
+
+  if (!$entity->isPublished()) {
+    return;
+  }
+
+  $apiService = DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api');
+  $apiService->addEntityData($entity);
 }
 
 /**
