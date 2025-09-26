@@ -183,6 +183,13 @@ class CludoApiService {
   }
 
   /**
+   * Telling Cludo to un-index the entity, if URL pushing is enabled.
+   */
+  public function removeEntityData(FieldableEntityInterface $entity): bool {
+    return $this->pushEntityData($entity, TRUE);
+  }
+
+  /**
    * Calling Cludo API, when we want to add/delete indexed content.
    */
   protected function pushEntityData(FieldableEntityInterface $entity, bool $delete = FALSE): bool {
@@ -210,9 +217,20 @@ class CludoApiService {
 
     $entityUrl = $entity->toUrl()->setAbsolute()->toString();
 
+    if ($delete) {
+      $endpoint = 'delete';
+
+      $payload = [[
+        $entityUrl => 'PageContent',
+      ],
+      ];
+    }
+    else {
       $endpoint = 'pushurls';
 
       $payload = [$entityUrl];
+    }
+
     $customerId = $this->config->get('customer_id');
     $url = "https://api.cludo.com/api/v3/$customerId/content/$crawlerId/$endpoint";
 

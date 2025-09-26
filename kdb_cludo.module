@@ -142,11 +142,20 @@ function kdb_cludo_entity_base_field_info(EntityTypeInterface $entity_type): arr
 }
 
 /**
+ * Implements hook_entity_predelete().
  */
+function kdb_cludo_entity_predelete(EntityInterface $entity): void {
+  if (!($entity instanceof NodeInterface) && !($entity instanceof EventInstance)) {
     return;
   }
 
+  $apiService = DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api');
+  $apiService->removeEntityData($entity);
+}
+
+/**
  * Implements hook_entity_presave().
+ */
 function kdb_cludo_entity_presave(EntityInterface $entity): void {
   if (!($entity instanceof NodeInterface) && !($entity instanceof EventInstance)) {
     return;
