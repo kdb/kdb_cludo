@@ -183,8 +183,6 @@ class CludoSettingsForm extends ConfigFormBase {
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $config = $this->config(self::CONFIG_SETTINGS_KEY);
 
-    if (true) {}
-
     $config->set('customer_id', $form_state->getValue('customer_id'));
     $config->set('api_key', $form_state->getValue('api_key'));
     $config->set('enable_url_pushing', $form_state->getValue('enable_url_pushing'));

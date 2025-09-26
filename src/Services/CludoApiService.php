@@ -4,10 +4,10 @@ namespace Drupal\kdb_cludo\Services;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\kdb_cludo\CludoProfile;
 use Drupal\kdb_cludo\Form\CludoSettingsForm;
-use Drupal\node\NodeInterface;
 use GuzzleHttp\ClientInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
@@ -73,7 +73,7 @@ class CludoApiService {
   }
 
   /**
-   * Getting the field definitions for node. We need this as part of install.
+   * Getting the field definitions for content. We need this as part of install.
    *
    * @return \Drupal\Core\Field\BaseFieldDefinition[]
    *   The field definitions.
@@ -176,15 +176,27 @@ class CludoApiService {
   }
 
   /**
-   * Telling Cludo to index a node, if URL pushing is enabled in Cludo settings.
+   * Telling Cludo to index the entity, if URL pushing is enabled.
    */
-  public function pushNodeData(NodeInterface $node, bool $english = FALSE): bool {
+  public function addEntityData(FieldableEntityInterface $entity): bool {
+    return $this->pushEntityData($entity, FALSE);
+  }
+
+  /**
+   * Calling Cludo API, when we want to add/delete indexed content.
+   */
+  protected function pushEntityData(FieldableEntityInterface $entity, bool $delete = FALSE): bool {
     $enabled = $this->config->get('enable_url_pushing');
 
     if (empty($enabled)) {
       $this->logger->info('Cludo URL pushing is disabled - skipping pushing node.');
       return FALSE;
     }
+
+    $english = (
+      $entity->hasField('kdb_cludo_english') &&
+      !empty($entity->get('kdb_cludo_english')->getString())
+    );
 
     $crawlerId = $this->config->get('crawler_id');
     $crawlerIdEnglish = $this->config->get('crawler_id_english');
@@ -196,10 +208,15 @@ class CludoApiService {
       return FALSE;
     }
 
+    $entityUrl = $entity->toUrl()->setAbsolute()->toString();
+
+      $endpoint = 'pushurls';
+
+      $payload = [$entityUrl];
     $customerId = $this->config->get('customer_id');
-    $url = "https://api.cludo.com/api/v3/$customerId/content/$crawlerId/pushurls";
-    $nodeUrl = $node->toUrl()->setAbsolute()->toString();
-    $response = $this->callApi($url, [$nodeUrl]);
+    $url = "https://api.cludo.com/api/v3/$customerId/content/$crawlerId/$endpoint";
+
+    $response = $this->callApi($url, $payload);
 
     $responseOK = ($response->getStatusCode() === 200);
 

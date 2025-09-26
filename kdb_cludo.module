@@ -5,9 +5,11 @@
  * Integration with Cludo search.
  */
 
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Url;
 use Drupal\Core\Entity\FieldableEntityInterface;
+use Drupal\dpl_event\Entity\EventInstance;
 use Drupal\dpl_search\DplSearchSettings;
 use Drupal\drupal_typed\DrupalTyped;
 use Drupal\file\FileInterface;
@@ -140,17 +142,18 @@ function kdb_cludo_entity_base_field_info(EntityTypeInterface $entity_type): arr
 }
 
 /**
- * Implements hook_ENTITY_TYPE_presave().
  */
-function kdb_cludo_node_presave(NodeInterface $node): void {
-  if (!$node->hasField('kdb_cludo_english')) {
     return;
   }
 
-  $isEnglish = !empty($node->get('kdb_cludo_english')->getString());
+ * Implements hook_entity_presave().
+function kdb_cludo_entity_presave(EntityInterface $entity): void {
+  if (!($entity instanceof NodeInterface) && !($entity instanceof EventInstance)) {
+    return;
+  }
 
   $apiService = DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api');
-  $apiService->pushNodeData($node, $isEnglish);
+  $apiService->addEntityData($entity);
 }
 
 /**
