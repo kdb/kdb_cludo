@@ -4,12 +4,15 @@ namespace Drupal\kdb_cludo\Services;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\Entity\FieldableEntityInterface;
+use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\kdb_cludo\CludoProfile;
 use Drupal\kdb_cludo\Form\CludoSettingsForm;
 use GuzzleHttp\ClientInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 use function Safe\json_decode;
+use function Safe\json_encode;
 
 /**
  * Service for calling the Cludo API.
@@ -68,6 +71,26 @@ class CludoApiService {
    */
   public function isAvailable(): bool {
     return $this->isAvailable;
+  }
+
+  /**
+   * Getting the field definitions for content. We need this as part of install.
+   *
+   * @return \Drupal\Core\Field\BaseFieldDefinition[]
+   *   The field definitions.
+   */
+  public static function getFieldDefinitions(): array {
+    $fields = [];
+
+    $fields['kdb_cludo_english'] = BaseFieldDefinition::create('boolean')
+      ->setLabel(t('English content', [], ['context' => 'kdb_cludo']))
+      ->setDescription(t('Mark if this content is english language. This makes sure it gets indexed correctly in searches.', [], ['context' => 'BNF']))
+      ->setDisplayOptions('form', [
+        'type' => 'checkbox',
+        'weight' => -99,
+      ]);
+
+    return $fields;
   }
 
   /**
@@ -151,6 +174,94 @@ class CludoApiService {
   public function getTotalResults(array $body): ?int {
     $results = $this->callSearch($body);
     return $results['TotalDocument'] ?? NULL;
+  }
+
+  /**
+   * Telling Cludo to index the entity, if URL pushing is enabled.
+   */
+  public function addEntityData(FieldableEntityInterface $entity): bool {
+    return $this->pushEntityData($entity, FALSE);
+  }
+
+  /**
+   * Telling Cludo to un-index the entity, if URL pushing is enabled.
+   */
+  public function removeEntityData(FieldableEntityInterface $entity): bool {
+    return $this->pushEntityData($entity, TRUE);
+  }
+
+  /**
+   * Calling Cludo API, when we want to add/delete indexed content.
+   */
+  protected function pushEntityData(FieldableEntityInterface $entity, bool $delete = FALSE): bool {
+    $enabled = $this->config->get('enable_url_pushing');
+
+    if (empty($enabled)) {
+      return FALSE;
+    }
+
+    $english = (
+      $entity->hasField('kdb_cludo_english') &&
+      !empty($entity->get('kdb_cludo_english')->getString())
+    );
+
+    $crawlerId = $this->config->get('crawler_id');
+    $crawlerIdEnglish = $this->config->get('crawler_id_english');
+
+    $crawlerId = ($english) ? $crawlerIdEnglish : $crawlerId;
+
+    if (!$crawlerId) {
+      $this->logger->warning('Could not push: Crawler ID not set.');
+      return FALSE;
+    }
+
+    $entityUrl = $entity->toUrl()->setAbsolute()->toString();
+
+    if ($delete) {
+      $endpoint = 'delete';
+
+      // Double array, as JSON has to be an object within an array.
+      $payload = [[
+        $entityUrl => 'PageContent',
+      ]];
+    }
+    else {
+      $endpoint = 'pushurls';
+
+      $payload = [$entityUrl];
+    }
+
+    $customerId = $this->config->get('customer_id');
+    $url = "https://api.cludo.com/api/v3/$customerId/content/$crawlerId/$endpoint";
+
+    $response = $this->callApi($url, $payload);
+
+    $responseOK = ($response->getStatusCode() === 200);
+
+    if (!$responseOK) {
+      $this->logger->error('Cludo URL pushing failed. Response: @message', [
+        '@message' => $response->getBody()->getContents(),
+      ]);
+    }
+    elseif ($delete) {
+      $this->logger->info('Successfully requested Cludo to delete @type @uuid from crawler @crawlerId. Payload: @payload', [
+        '@type' => $entity->getEntityTypeId(),
+        '@uuid' => $entity->uuid(),
+        '@crawlerId' => $crawlerId,
+        '@payload' => json_encode($payload),
+      ]);
+    }
+    else {
+      $this->logger->info('Successfully requested Cludo to index @type @uuid to crawler @crawlerId. Payload: @payload', [
+        '@type' => $entity->getEntityTypeId(),
+        '@uuid' => $entity->uuid(),
+        '@crawlerId' => $crawlerId,
+        '@payload' => json_encode($payload),
+
+      ]);
+    }
+
+    return ($responseOK);
   }
 
 }

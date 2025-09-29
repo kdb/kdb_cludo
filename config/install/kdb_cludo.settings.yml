@@ -3,7 +3,10 @@ dependencies:
   enforced:
     module:
       - kdb_cludo
-customer_id: '2719'
+customer_id: 2719
+enable_url_pushing: 0
+crawler_id: 10904
+crawler_id_english: 10905
 profiles:
   main:
     enabled: 1
