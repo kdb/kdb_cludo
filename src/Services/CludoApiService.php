@@ -197,7 +197,6 @@ class CludoApiService {
     $enabled = $this->config->get('enable_url_pushing');
 
     if (empty($enabled)) {
-      $this->logger->info('Cludo URL pushing is disabled - skipping pushing node.');
       return FALSE;
     }
 
@@ -221,10 +220,10 @@ class CludoApiService {
     if ($delete) {
       $endpoint = 'delete';
 
+      // Double array, as JSON has to be an object within an array.
       $payload = [[
         $entityUrl => 'PageContent',
-      ],
-      ];
+      ]];
     }
     else {
       $endpoint = 'pushurls';
