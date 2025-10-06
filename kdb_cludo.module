@@ -154,14 +154,26 @@ function kdb_cludo_entity_predelete(EntityInterface $entity): void {
 }
 
 /**
- * Implements hook_entity_insert().
+ * Implements hook_entity_update().
  */
 function kdb_cludo_entity_update(EntityInterface $entity): void {
-  _kdb_cludo_entity_save($entity);
+  // Triggering a save event on all associated eventinstances, to make sure
+  // that they also get URL pushed to Cludo.
+  if ($entity instanceof \Drupal\recurring_events\Entity\EventSeries) {
+    /** @var EventInstance[] $instances */
+    $instances = $entity->get('event_instances')->referencedEntities();
+
+    foreach ($instances as $instance) {
+      $instance->save();
+    }
+  }
+  else {
+    _kdb_cludo_entity_save($entity);
+  }
 }
 
 /**
- * Implements hook_entity_update().
+ * Implements hook_entity_insert().
  */
 function kdb_cludo_entity_insert(EntityInterface $entity): void {
   _kdb_cludo_entity_save($entity);
