@@ -193,7 +193,7 @@ class CludoApiService {
   /**
    * Calling Cludo API, when we want to add/delete indexed content.
    */
-  protected function pushEntityData(FieldableEntityInterface $entity, bool $delete = FALSE): bool {
+  public function pushEntityData(FieldableEntityInterface $entity, bool $delete = FALSE): bool {
     $enabled = $this->config->get('enable_url_pushing');
 
     if (empty($enabled)) {
@@ -223,7 +223,8 @@ class CludoApiService {
       // Double array, as JSON has to be an object within an array.
       $payload = [[
         $entityUrl => 'PageContent',
-      ]];
+      ],
+      ];
     }
     else {
       $endpoint = 'pushurls';
@@ -237,27 +238,29 @@ class CludoApiService {
     $response = $this->callApi($url, $payload);
 
     $responseOK = ($response->getStatusCode() === 200);
+    $message = $response->getBody()->getContents();
 
     if (!$responseOK) {
       $this->logger->error('Cludo URL pushing failed. Response: @message', [
-        '@message' => $response->getBody()->getContents(),
+        '@message' => $message,
       ]);
     }
     elseif ($delete) {
-      $this->logger->info('Successfully requested Cludo to delete @type @uuid from crawler @crawlerId. Payload: @payload', [
+      $this->logger->info('Successfully requested Cludo to delete @type @uuid from crawler @crawlerId. Payload: @payload | Response: @response', [
         '@type' => $entity->getEntityTypeId(),
         '@uuid' => $entity->uuid(),
         '@crawlerId' => $crawlerId,
         '@payload' => json_encode($payload),
+        '@response' => $message,
       ]);
     }
     else {
-      $this->logger->info('Successfully requested Cludo to index @type @uuid to crawler @crawlerId. Payload: @payload', [
+      $this->logger->info('Successfully requested Cludo to index @type @uuid to crawler @crawlerId. Payload: @payload | Response: @response', [
         '@type' => $entity->getEntityTypeId(),
         '@uuid' => $entity->uuid(),
         '@crawlerId' => $crawlerId,
         '@payload' => json_encode($payload),
-
+        '@response' => $message,
       ]);
     }
 
