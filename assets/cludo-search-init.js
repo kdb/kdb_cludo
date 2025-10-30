@@ -8,29 +8,52 @@
   window.cludo_searchType = settings.searchType;
   window.cludo_searchInputSelectors = settings.searchInputSelectors;
 
-  // The searchResults script from Cludo uses the main engineId in the URL,
-  // rather than the currently selected profiles.
-  const mainEngineId = '14490';
+  // Enable async/await, so we can make sure that the scripts are loaded
+  // in the right order, and not loaded until the others are ready.
+  function loadScript(src, attrs = {}) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.defer = true;
+
+      // Apply optional attributes (like id, data-cid, etc.)
+      Object.entries(attrs).forEach(([key, value]) => {
+        script.setAttribute(key, value);
+      });
+
+      script.onload = () => resolve(script);
+      script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+      document.body.appendChild(script);
+    });
+  }
 
   // The external Cludo scripts need to be placed after the init script, and
   // also need customer and engine IDs.
   // We'll fix both issues by adding them as dynamic script tags.
-  const searchScript = document.createElement('script');
-  searchScript.src =
-    'https://customer.cludo.com/scripts/bundles/search-script.min.js?drupal';
-  searchScript.defer = true;
-  document.body.appendChild(searchScript);
+  (async () => {
+    try {
+      // The searchResults script from Cludo uses the main engineId in the URL,
+      // rather than the currently selected profiles.
+      const mainEngineId = '14490';
+      const customerId = window.cludo_customerId;
 
-  const searchResultsScript = document.createElement('script');
-  searchResultsScript.src = `https://customer.cludo.com/templates/${settings.customerId}/${mainEngineId}/dist/js/cludo-search-results.js?drupal`;
-  searchResultsScript.defer = true;
-  document.body.appendChild(searchResultsScript);
+      await loadScript(
+        'https://customer.cludo.com/scripts/bundles/search-script.min.js?v2',
+      );
 
-  const managerScript = document.createElement('script');
-  managerScript.src =
-    'https://customer.cludo.com/scripts/bundles/experiences/manager.js?drupal';
-  managerScript.defer = true;
-  managerScript.id = 'cludo-experience-manager';
-  managerScript.setAttribute('data-cid', settings.customerId);
-  document.body.appendChild(managerScript);
+      await loadScript(
+        `https://customer.cludo.com/templates/${customerId}/${mainEngineId}/dist/js/cludo-search-results.js?v2`,
+      );
+
+      await loadScript(
+        'https://customer.cludo.com/scripts/bundles/experiences/manager.js?v2',
+        {
+          id: 'cludo-experience-manager',
+          'data-cid': customerId,
+        },
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  })();
 })(Drupal, drupalSettings);
