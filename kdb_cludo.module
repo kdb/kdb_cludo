@@ -204,6 +204,7 @@ function kdb_cludo_page_attachments(array &$page): void {
   $branch_field_name = 'field_branch';
   $categories_field_name = 'field_categories';
   $tags_field_name = 'field_tags';
+  $audiences_field_name = 'field_audiences';
   $image_field_name = 'field_teaser_image';
 
   switch ($route->getRouteName()) {
@@ -220,6 +221,7 @@ function kdb_cludo_page_attachments(array &$page): void {
       $branch_field_name = 'branch';
       $categories_field_name = 'event_categories';
       $tags_field_name = 'event_tags';
+      $audiences_field_name = 'event_audiences';
       $image_field_name = 'event_teaser_image';
       break;
 
@@ -231,6 +233,7 @@ function kdb_cludo_page_attachments(array &$page): void {
     'branch' => $branch_field_name,
     'categories' => $categories_field_name,
     'tags' => $tags_field_name,
+    'audiences' => $audiences_field_name,
   ];
 
   foreach ($reference_fields as $key => $field_name) {
