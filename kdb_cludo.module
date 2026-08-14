@@ -85,18 +85,18 @@ function _kdb_cludo_get_image_metatag(FieldableEntityInterface $entity, string $
  * @param string $metatag_key
  *   The key that will be used as the metatag key.
  *
- * @return array<mixed>|null
- *   A meta-tag render array, ready to be used in #attached.
+ * @return array<mixed>
+ *   An array of meta-tag renders array(s), ready to be used in #attached.
  */
-function _kdb_cludo_get_reference_label_metatag(FieldableEntityInterface $entity, string $field_name, string $metatag_key): ?array {
+function _kdb_cludo_get_reference_label_metatag(FieldableEntityInterface $entity, string $field_name, string $metatag_key): array {
   if (!$entity->hasField($field_name) || $entity->get($field_name)->isEmpty()) {
-    return NULL;
+    return [];
   }
 
   $field = $entity->get($field_name);
 
   $references = $field->referencedEntities();
-  $labels = [];
+  $metatags = [];
 
   foreach ($references as $reference) {
     if (!($reference instanceof FieldableEntityInterface)) {
@@ -106,21 +106,17 @@ function _kdb_cludo_get_reference_label_metatag(FieldableEntityInterface $entity
     $label = $reference->label();
 
     if (!empty($label)) {
-      $labels[] = $label;
+      $metatags[] = [
+        '#tag' => 'meta',
+        '#attributes' => [
+          'name' => $metatag_key,
+          'content' => $label,
+        ],
+      ];
     }
   }
 
-  if (empty($labels)) {
-    return NULL;
-  }
-
-  return [
-    '#tag' => 'meta',
-    '#attributes' => [
-      'name' => $metatag_key,
-      'content' => implode(', ', $labels),
-    ],
-  ];
+  return $metatags;
 }
 
 /**
@@ -204,6 +200,7 @@ function kdb_cludo_page_attachments(array &$page): void {
   $branch_field_name = 'field_branch';
   $categories_field_name = 'field_categories';
   $tags_field_name = 'field_tags';
+  $audiences_field_name = 'field_audiences';
   $image_field_name = 'field_teaser_image';
 
   switch ($route->getRouteName()) {
@@ -220,6 +217,7 @@ function kdb_cludo_page_attachments(array &$page): void {
       $branch_field_name = 'branch';
       $categories_field_name = 'event_categories';
       $tags_field_name = 'event_tags';
+      $audiences_field_name = 'event_audiences';
       $image_field_name = 'event_teaser_image';
       break;
 
@@ -231,13 +229,16 @@ function kdb_cludo_page_attachments(array &$page): void {
     'branch' => $branch_field_name,
     'categories' => $categories_field_name,
     'tags' => $tags_field_name,
+    'audiences' => $audiences_field_name,
   ];
 
   foreach ($reference_fields as $key => $field_name) {
-    $reference_metatag = _kdb_cludo_get_reference_label_metatag($entity, $field_name, $key);
+    $reference_metatags = _kdb_cludo_get_reference_label_metatag($entity, $field_name, $key);
 
-    if ($reference_metatag) {
-      $page['#attached']['html_head'][] = [$reference_metatag, $key];
+    // Cludo specifically wants multi-value metatags to show up several
+    // times in the DOM, with duplicate "name"s. @see KB-52.
+    foreach ($reference_metatags as $i => $reference_metatag) {
+      $page['#attached']['html_head'][] = [$reference_metatag, "{$key}_{$i}"];
     }
   }
 
