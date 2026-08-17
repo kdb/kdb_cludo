@@ -1,6 +1,7 @@
 <?php
 
 use Drupal\kdb_cludo\Services\CludoApiService;
+use Drupal\kdb_cludo\Services\CludoPushQueue;
 
 /**
  * Remove elements from the list of automatically ignored config entities.
@@ -107,4 +108,16 @@ function kdb_cludo_update_10001(): string {
  */
 function kdb_cludo_update_10002(): string {
   return _kdb_cludo_install_fields();
+}
+
+/**
+ * Add default batch sizes for the Cludo URL push queue.
+ */
+function kdb_cludo_update_10003(): string {
+  $settings = \Drupal::configFactory()->getEditable('kdb_cludo.settings');
+  $settings->set('push_urls_per_request', CludoPushQueue::DEFAULT_URLS_PER_REQUEST);
+  $settings->set('push_requests_per_cron', CludoPushQueue::DEFAULT_REQUESTS_PER_CRON);
+  $settings->save();
+
+  return 'Cludo URL push queue default values set.';
 }

@@ -177,6 +177,40 @@ class CludoApiService {
   }
 
   /**
+   * Tells if the editor has turned on pushing of URLs to Cludo at all.
+   */
+  public function isUrlPushingEnabled(): bool {
+    return !empty($this->config->get('enable_url_pushing'));
+  }
+
+  /**
+   * Finding the Cludo crawler that an entity belongs to.
+   *
+   * English content lives in a crawler of its own, so it gets indexed with
+   * the right language analysis.
+   *
+   * @return string|null
+   *   The crawler ID, or NULL if it has not been configured.
+   */
+  public function getCrawlerId(FieldableEntityInterface $entity): ?string {
+    $english = (
+      $entity->hasField('kdb_cludo_english') &&
+      !empty($entity->get('kdb_cludo_english')->getString())
+    );
+
+    $crawlerId = ($english) ?
+      $this->config->get('crawler_id_english') :
+      $this->config->get('crawler_id');
+
+    if (!$crawlerId) {
+      $this->logger->warning('Could not push: Crawler ID not set.');
+      return NULL;
+    }
+
+    return (string) $crawlerId;
+  }
+
+  /**
    * Telling Cludo to index the entity, if URL pushing is enabled.
    */
   public function addEntityData(FieldableEntityInterface $entity): bool {
@@ -191,45 +225,63 @@ class CludoApiService {
   }
 
   /**
-   * Calling Cludo API, when we want to add/delete indexed content.
+   * Pushing a single entity to Cludo, right away.
+   *
+   * Notice that this blocks the current request until Cludo has answered.
+   * Anything that may touch more than a handful of entities - update hooks,
+   * bulk operations, migrations - should go through CludoPushQueue instead.
+   *
+   * @see \Drupal\kdb_cludo\Services\CludoPushQueue
    */
   public function pushEntityData(FieldableEntityInterface $entity, bool $delete = FALSE): bool {
-    $enabled = $this->config->get('enable_url_pushing');
-
-    if (empty($enabled)) {
+    if (!$this->isUrlPushingEnabled()) {
       return FALSE;
     }
 
-    $english = (
-      $entity->hasField('kdb_cludo_english') &&
-      !empty($entity->get('kdb_cludo_english')->getString())
-    );
-
-    $crawlerId = $this->config->get('crawler_id');
-    $crawlerIdEnglish = $this->config->get('crawler_id_english');
-
-    $crawlerId = ($english) ? $crawlerIdEnglish : $crawlerId;
+    $crawlerId = $this->getCrawlerId($entity);
 
     if (!$crawlerId) {
-      $this->logger->warning('Could not push: Crawler ID not set.');
       return FALSE;
     }
 
     $entityUrl = $entity->toUrl()->setAbsolute()->toString();
 
+    return $this->pushUrls([$entityUrl], $crawlerId, $delete);
+  }
+
+  /**
+   * Calling Cludo API, when we want to add/delete indexed content.
+   *
+   * Cludo accepts - and prefers - several URLs in the same request. Pushing
+   * them one by one is what makes them answer 429 Too Many Requests.
+   *
+   * @param string[] $urls
+   *   The absolute URLs to index (or un-index).
+   * @param string $crawlerId
+   *   The Cludo crawler the URLs belong to.
+   * @param bool $delete
+   *   Whether to un-index the URLs, rather than index them.
+   */
+  public function pushUrls(array $urls, string $crawlerId, bool $delete = FALSE): bool {
+    $urls = array_values(array_unique($urls));
+
+    if (empty($urls)) {
+      return FALSE;
+    }
+
     if ($delete) {
       $endpoint = 'delete';
 
-      // Double array, as JSON has to be an object within an array.
-      $payload = [[
-        $entityUrl => 'PageContent',
-      ],
-      ];
+      // Cludo expects an array of objects, each mapping a URL to its type.
+      $payload = array_map(
+        fn (string $url): array => [$url => 'PageContent'],
+        $urls
+      );
     }
     else {
       $endpoint = 'pushurls';
 
-      $payload = [$entityUrl];
+      $payload = $urls;
     }
 
     $customerId = $this->config->get('customer_id');
@@ -237,34 +289,29 @@ class CludoApiService {
 
     $response = $this->callApi($url, $payload);
 
-    $responseOK = ($response->getStatusCode() === 200);
+    // Cludo normally answers 200, but any 2xx means the request was
+    // accepted. Guzzle throws on 4xx/5xx before we get here.
+    $statusCode = $response->getStatusCode();
+    $responseOK = ($statusCode >= 200 && $statusCode < 300);
     $message = $response->getBody()->getContents();
 
     if (!$responseOK) {
       $this->logger->error('Cludo URL pushing failed. Response: @message', [
         '@message' => $message,
       ]);
-    }
-    elseif ($delete) {
-      $this->logger->info('Successfully requested Cludo to delete @type @uuid from crawler @crawlerId. Payload: @payload | Response: @response', [
-        '@type' => $entity->getEntityTypeId(),
-        '@uuid' => $entity->uuid(),
-        '@crawlerId' => $crawlerId,
-        '@payload' => json_encode($payload),
-        '@response' => $message,
-      ]);
-    }
-    else {
-      $this->logger->info('Successfully requested Cludo to index @type @uuid to crawler @crawlerId. Payload: @payload | Response: @response', [
-        '@type' => $entity->getEntityTypeId(),
-        '@uuid' => $entity->uuid(),
-        '@crawlerId' => $crawlerId,
-        '@payload' => json_encode($payload),
-        '@response' => $message,
-      ]);
+
+      return FALSE;
     }
 
-    return ($responseOK);
+    $this->logger->info('Successfully requested Cludo to @endpoint @count URL(s) on crawler @crawlerId. Payload: @payload | Response: @response', [
+      '@endpoint' => $endpoint,
+      '@count' => count($urls),
+      '@crawlerId' => $crawlerId,
+      '@payload' => json_encode($payload),
+      '@response' => $message,
+    ]);
+
+    return TRUE;
   }
 
 }
