@@ -7,6 +7,7 @@ use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\Queue\QueueInterface;
+use Drupal\drupal_typed\DrupalTyped;
 use Drupal\kdb_cludo\CludoPushBatch;
 use Drupal\kdb_cludo\Form\CludoSettingsForm;
 use GuzzleHttp\Exception\BadResponseException;
@@ -63,6 +64,29 @@ class CludoPushQueue {
     ConfigFactoryInterface $configFactory,
   ) {
     $this->config = $configFactory->get(CludoSettingsForm::CONFIG_SETTINGS_KEY);
+  }
+
+  /**
+   * Building the queue without going through our own service definition.
+   *
+   * Drupal does not rebuild the service container just because a module's
+   * services.yml gained a service, and `drush deploy` runs update hooks
+   * before it rebuilds caches. On the deployment that introduces
+   * kdb_cludo.push_queue, update hooks can therefore save thousands of
+   * entities while the container still knows nothing about the service.
+   *
+   * Everything the queue needs has been in the container for releases, so we
+   * can build it by hand until the container catches up.
+   *
+   * @see _kdb_cludo_push_queue()
+   */
+  public static function createFromContainer(): self {
+    return new self(
+      DrupalTyped::service(LoggerInterface::class, 'kdb_cludo.logger'),
+      DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api'),
+      DrupalTyped::service(QueueFactory::class, 'queue'),
+      DrupalTyped::service(ConfigFactoryInterface::class, 'config.factory'),
+    );
   }
 
   /**
