@@ -140,6 +140,26 @@ function kdb_cludo_entity_base_field_info(EntityTypeInterface $entity_type): arr
 }
 
 /**
+ * Getting the queue that holds URLs waiting to be pushed to Cludo.
+ *
+ * We do not just ask the container for kdb_cludo.push_queue, because it may
+ * not know about it yet: Drupal does not rebuild the container just because a
+ * module's services.yml gained a service, and `drush deploy` runs update hooks
+ * before it rebuilds caches. Update hooks that save content - dpl_update saves
+ * every event instance on the site - would otherwise die on a container that
+ * predates this release.
+ *
+ * The fallback can go away once every site has deployed past this release.
+ */
+function _kdb_cludo_push_queue(): CludoPushQueue {
+  if (\Drupal::hasService('kdb_cludo.push_queue')) {
+    return DrupalTyped::service(CludoPushQueue::class, 'kdb_cludo.push_queue');
+  }
+
+  return CludoPushQueue::createFromContainer();
+}
+
+/**
  * Implements hook_entity_predelete().
  */
 function kdb_cludo_entity_predelete(EntityInterface $entity): void {
@@ -150,7 +170,7 @@ function kdb_cludo_entity_predelete(EntityInterface $entity): void {
     return;
   }
 
-  $pushQueue = DrupalTyped::service(CludoPushQueue::class, 'kdb_cludo.push_queue');
+  $pushQueue = _kdb_cludo_push_queue();
   $pushQueue->addEntity($entity, TRUE);
 }
 
@@ -184,7 +204,7 @@ function _kdb_cludo_entity_save(EntityInterface $entity): void {
     return;
   }
 
-  $pushQueue = DrupalTyped::service(CludoPushQueue::class, 'kdb_cludo.push_queue');
+  $pushQueue = _kdb_cludo_push_queue();
 
   $pushQueue->addEntity($entity, !$entity->isPublished());
 
@@ -201,7 +221,7 @@ function _kdb_cludo_entity_save(EntityInterface $entity): void {
  * Pushing the queued URLs to Cludo, in batches.
  */
 function kdb_cludo_cron(): void {
-  $pushQueue = DrupalTyped::service(CludoPushQueue::class, 'kdb_cludo.push_queue');
+  $pushQueue = _kdb_cludo_push_queue();
   $pushQueue->processQueue();
 }
 
