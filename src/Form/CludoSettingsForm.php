@@ -9,6 +9,7 @@ use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\kdb_cludo\Services\CludoProfileService;
+use Drupal\kdb_cludo\Services\CludoPushQueue;
 use Drupal\views\ViewExecutable;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -22,7 +23,7 @@ class CludoSettingsForm extends ConfigFormBase {
    */
   public const CONFIG_SETTINGS_KEY = 'kdb_cludo.settings';
 
-  public function __construct(ConfigFactoryInterface $configFactory, private CacheTagsInvalidatorInterface $cacheTagsInvalidator, private CludoProfileService $cludoProfileService) {
+  public function __construct(ConfigFactoryInterface $configFactory, private CacheTagsInvalidatorInterface $cacheTagsInvalidator, private CludoProfileService $cludoProfileService, protected CludoPushQueue $cludoPushQueue) {
     parent::__construct($configFactory);
   }
 
@@ -34,6 +35,7 @@ class CludoSettingsForm extends ConfigFormBase {
       $container->get('config.factory'),
       $container->get('cache_tags.invalidator'),
       $container->get('kdb_cludo.cludo_profile'),
+      $container->get('kdb_cludo.push_queue'),
     );
   }
 
@@ -146,6 +148,42 @@ class CludoSettingsForm extends ConfigFormBase {
         '#title' => $this->t('Crawler ID (English content)', [], ['context' => 'kdb_cludo']),
         '#default_value' => $config->get('crawler_id_english'),
       ],
+      'push_urls_per_request' => [
+        '#type' => 'number',
+        '#min' => 1,
+        '#title' => $this->t('URLs per request', [], ['context' => 'kdb_cludo']),
+        '#description' => $this->t('How many URLs we send to Cludo in one request. Lower this if Cludo starts rejecting our requests.', [], ['context' => 'kdb_cludo']),
+        '#default_value' => $config->get('push_urls_per_request') ?: CludoPushQueue::DEFAULT_URLS_PER_REQUEST,
+      ],
+      'push_requests_per_cron' => [
+        '#type' => 'number',
+        '#min' => 1,
+        '#title' => $this->t('Requests per cron run', [], ['context' => 'kdb_cludo']),
+        '#description' => $this->t('How many requests we make to Cludo on a single cron run. This is what keeps a large backlog from turning into a burst that Cludo rate limits.', [], ['context' => 'kdb_cludo']),
+        '#default_value' => $config->get('push_requests_per_cron') ?: CludoPushQueue::DEFAULT_REQUESTS_PER_CRON,
+      ],
+    ];
+
+    $pending = $this->cludoPushQueue->getPendingCount();
+
+    $form['url_pushing']['queue_status'] = [
+      '#type' => 'item',
+      '#title' => $this->t('Push queue', [], ['context' => 'kdb_cludo']),
+      '#markup' => $this->formatPlural(
+        $pending,
+        '@count URL is waiting to be pushed to Cludo. URLs are pushed on cron.',
+        '@count URLs are waiting to be pushed to Cludo. URLs are pushed on cron.',
+        [], ['context' => 'kdb_cludo']
+      ),
+    ];
+
+    $form['url_pushing']['process_queue'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Push queued URLs now', [], ['context' => 'kdb_cludo']),
+      '#submit' => ['::processQueueSubmit'],
+      // We're not saving the form, so the other fields shouldn't be validated.
+      '#limit_validation_errors' => [],
+      '#access' => ($pending > 0),
     ];
 
     foreach ($this->cludoProfileService->getProfiles() as $profile) {
@@ -188,6 +226,8 @@ class CludoSettingsForm extends ConfigFormBase {
     $config->set('enable_url_pushing', $form_state->getValue('enable_url_pushing'));
     $config->set('crawler_id', $form_state->getValue('crawler_id'));
     $config->set('crawler_id_english', $form_state->getValue('crawler_id_english'));
+    $config->set('push_urls_per_request', $form_state->getValue('push_urls_per_request'));
+    $config->set('push_requests_per_cron', $form_state->getValue('push_requests_per_cron'));
 
     $profiles_settings = [];
 
@@ -214,6 +254,30 @@ class CludoSettingsForm extends ConfigFormBase {
     $this->cacheTagsInvalidator->invalidateTags(['kdb_cludo']);
 
     parent::submitForm($form, $form_state);
+  }
+
+  /**
+   * Submit handler for draining the push queue, without waiting for cron.
+   *
+   * This pushes at most one cron run worth of URLs - anything beyond that is
+   * left for cron, so we don't sit and time out on a large backlog.
+   *
+   * @param array<mixed> $form
+   *   The form structure.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   */
+  public function processQueueSubmit(array &$form, FormStateInterface $form_state): void {
+    $pushed = $this->cludoPushQueue->processQueue();
+    $pending = $this->cludoPushQueue->getPendingCount();
+
+    $this->messenger()->addStatus($this->formatPlural(
+      $pushed,
+      'Pushed @count URL to Cludo. @pending left in the queue.',
+      'Pushed @count URLs to Cludo. @pending left in the queue.',
+      ['@pending' => $pending],
+      ['context' => 'kdb_cludo']
+    ));
   }
 
 }

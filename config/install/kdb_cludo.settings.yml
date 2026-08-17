@@ -7,6 +7,8 @@ customer_id: 2719
 enable_url_pushing: 0
 crawler_id: 10904
 crawler_id_english: 10905
+push_urls_per_request: 100
+push_requests_per_cron: 25
 profiles:
   main:
     enabled: 1

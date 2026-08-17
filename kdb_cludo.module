@@ -17,6 +17,7 @@ use Drupal\image\Entity\ImageStyle;
 use Drupal\kdb_cludo\CludoProfile;
 use Drupal\kdb_cludo\Services\CludoApiService;
 use Drupal\kdb_cludo\Services\CludoProfileService;
+use Drupal\kdb_cludo\Services\CludoPushQueue;
 use Drupal\media\MediaInterface;
 use Drupal\node\NodeInterface;
 use Drupal\paragraphs\ParagraphInterface;
@@ -149,8 +150,8 @@ function kdb_cludo_entity_predelete(EntityInterface $entity): void {
     return;
   }
 
-  $apiService = DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api');
-  $apiService->removeEntityData($entity);
+  $pushQueue = DrupalTyped::service(CludoPushQueue::class, 'kdb_cludo.push_queue');
+  $pushQueue->addEntity($entity, TRUE);
 }
 
 /**
@@ -169,6 +170,11 @@ function kdb_cludo_entity_insert(EntityInterface $entity): void {
 
 /**
  * Triggered after a node is saved - either by hook_insert or hook_update.
+ *
+ * We only queue the URL here. Actually calling Cludo happens on cron, so
+ * that mass updates of e.g. event instances don't fire thousands of
+ * requests - which Cludo answers with 429 Too Many Requests - while holding
+ * up whatever did the saving.
  */
 function _kdb_cludo_entity_save(EntityInterface $entity): void {
   if (!($entity instanceof NodeInterface) &&
@@ -178,15 +184,25 @@ function _kdb_cludo_entity_save(EntityInterface $entity): void {
     return;
   }
 
-  $apiService = DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api');
+  $pushQueue = DrupalTyped::service(CludoPushQueue::class, 'kdb_cludo.push_queue');
 
-  $apiService->pushEntityData($entity, !$entity->isPublished());
+  $pushQueue->addEntity($entity, !$entity->isPublished());
 
   // Also push the series, if it's an instance.
   if ($entity instanceof EventInstance) {
     $series = $entity->getEventSeries();
-    $apiService->pushEntityData($series, !$series->isPublished());
+    $pushQueue->addEntity($series, !$series->isPublished());
   }
+}
+
+/**
+ * Implements hook_cron().
+ *
+ * Pushing the queued URLs to Cludo, in batches.
+ */
+function kdb_cludo_cron(): void {
+  $pushQueue = DrupalTyped::service(CludoPushQueue::class, 'kdb_cludo.push_queue');
+  $pushQueue->processQueue();
 }
 
 /**
