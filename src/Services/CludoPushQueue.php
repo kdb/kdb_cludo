@@ -194,26 +194,25 @@ class CludoPushQueue {
         $pushed += count($batch->urls);
       }
       catch (\Throwable $e) {
-        $status = ($e instanceof BadResponseException) ?
-          $e->getResponse()->getStatusCode() :
-          NULL;
-
-        // Anything but rate limiting in the 4xx range means Cludo is never
-        // going to accept these URLs. Keeping them would block the rest of
-        // the queue forever, so we drop them and move on.
-        if ($status && $status < 500 && $status !== 429) {
-          $this->logger->error('Cludo rejected @count URL(s) with status @status - dropping them from the queue. Message: @message', [
-            '@count' => count($batch->urls),
-            '@status' => $status,
-            '@message' => $e->getMessage(),
-          ]);
-
-          $this->deleteItems($queue, $batch->items);
-          continue;
+        // Cludo rejected the batch outright - but with several URLs in the
+        // same request, the response does not tell us which of them it
+        // objects to. Retry them one at a time, so only the URLs Cludo
+        // actually rejects get dropped; the rest still go through.
+        if ($this->getRejectionStatus($e) !== NULL) {
+          try {
+            $this->retryIndividually($queue, $batch, $pushed);
+            continue;
+          }
+          catch (\Throwable $e) {
+            // The retries were interrupted by rate limiting or a server
+            // error. The batch's unhandled items are back in $batch->items,
+            // so they are released below, along with the later batches.
+          }
         }
 
-        // We are being rate limited, or Cludo is having a bad day. Put back
-        // everything we have not pushed yet, and try again on the next cron.
+        // We are being rate limited, Cludo is having a bad day, or our
+        // credentials are not being accepted. Put back everything we have
+        // not pushed yet, and try again on the next cron.
         $released = $this->releaseBatches($queue, array_slice($batches, $index));
 
         $this->logger->warning('Cludo URL pushing paused after @pushed URL(s) - @released URL(s) put back in the queue. Message: @message', [
@@ -227,6 +226,95 @@ class CludoPushQueue {
     }
 
     return $pushed;
+  }
+
+  /**
+   * Pushing a rejected batch's URLs one at a time.
+   *
+   * Used when Cludo rejects a whole batch: its response does not say which
+   * URL it objects to, so each URL is retried in its own request. The URLs
+   * Cludo rejects individually are dropped and logged; the rest go through.
+   *
+   * If the retries get rate limited (or hit a server error), the exception
+   * bubbles up to stop the run - with the batch's unhandled items left in
+   * $batch->items, ready to be released back into the queue.
+   *
+   * @param \Drupal\Core\Queue\QueueInterface $queue
+   *   The queue the batch's items came from.
+   * @param \Drupal\kdb_cludo\CludoPushBatch $batch
+   *   The rejected batch.
+   * @param int $pushed
+   *   The run's tally of pushed URLs. By reference, so the URLs pushed
+   *   before an interruption still count.
+   */
+  private function retryIndividually(QueueInterface $queue, CludoPushBatch $batch, int &$pushed): void {
+    $itemsByUrl = [];
+
+    foreach ($batch->items as $item) {
+      $itemsByUrl[(string) $item->data['url']][] = $item;
+    }
+
+    while (!empty($itemsByUrl)) {
+      $url = (string) array_key_first($itemsByUrl);
+
+      try {
+        if (!$this->apiService->pushUrls([$url], $batch->crawlerId, $batch->delete)) {
+          throw new \RuntimeException('Cludo did not accept the pushed URL.');
+        }
+
+        $pushed++;
+      }
+      catch (\Throwable $e) {
+        $status = $this->getRejectionStatus($e);
+
+        if ($status === NULL) {
+          $batch->items = array_merge([], ...array_values($itemsByUrl));
+
+          throw $e;
+        }
+
+        $this->logger->error('Cludo rejected @url with status @status - dropping it from the queue. Message: @message', [
+          '@url' => $url,
+          '@status' => $status,
+          '@message' => $e->getMessage(),
+        ]);
+      }
+
+      // Pushed, or rejected and dropped - either way the URL is settled,
+      // and its queue items are done.
+      $this->deleteItems($queue, $itemsByUrl[$url]);
+      unset($itemsByUrl[$url]);
+    }
+  }
+
+  /**
+   * The status code of a Cludo rejection - if that is what the exception is.
+   *
+   * A rejection is a response telling us Cludo understood the request and
+   * turned it down - retrying later would not change its mind. That is the
+   * 4xx range, with two exceptions: 429 is explicitly a "try again later",
+   * and 401/403 mean our credentials are not accepted, which is a
+   * configuration problem rather than a URL problem. Those - like 5xx and
+   * network errors - are worth retrying, so they do not count as rejections.
+   *
+   * @param \Throwable $e
+   *   The exception a push attempt threw.
+   *
+   * @return int|null
+   *   The status code, or NULL if the request is worth retrying.
+   */
+  private function getRejectionStatus(\Throwable $e): ?int {
+    if (!($e instanceof BadResponseException)) {
+      return NULL;
+    }
+
+    $status = $e->getResponse()->getStatusCode();
+
+    if ($status >= 500 || in_array($status, [401, 403, 429], TRUE)) {
+      return NULL;
+    }
+
+    return $status;
   }
 
   /**
