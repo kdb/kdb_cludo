@@ -86,7 +86,7 @@ class CludoApiService {
       ->setLabel(t('English content', [], ['context' => 'kdb_cludo']))
       ->setDescription(t('Mark if this content is english language. This makes sure it gets indexed correctly in searches.', [], ['context' => 'BNF']))
       ->setDisplayOptions('form', [
-        'type' => 'checkbox',
+        'type' => 'boolean_checkbox',
         'weight' => -99,
       ]);
 
