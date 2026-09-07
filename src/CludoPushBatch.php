@@ -47,6 +47,19 @@ class CludoPushBatch {
   }
 
   /**
+   * The queue items behind one of the batch's URLs - duplicates included.
+   *
+   * @return \stdClass[]
+   *   The items whose URL is the given one.
+   */
+  public function itemsForUrl(string $url): array {
+    return array_values(array_filter(
+      $this->items,
+      fn (\stdClass $item): bool => ((string) $item->data['url'] === $url)
+    ));
+  }
+
+  /**
    * Tells if the batch has room for more URLs.
    */
   public function hasRoomFor(int $urlsPerRequest): bool {

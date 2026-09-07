@@ -195,6 +195,12 @@ function kdb_cludo_entity_insert(EntityInterface $entity): void {
  * that mass updates of e.g. event instances don't fire thousands of
  * requests - which Cludo answers with 429 Too Many Requests - while holding
  * up whatever did the saving.
+ *
+ * In a web request - an editor pressing save - the queue is also drained
+ * once the response has gone out, so the editor's change reaches Cludo
+ * without waiting for cron.
+ *
+ * @see \Drupal\kdb_cludo\EventSubscriber\PushQueueOnTerminate
  */
 function _kdb_cludo_entity_save(EntityInterface $entity): void {
   if (!($entity instanceof NodeInterface) &&
@@ -208,10 +214,14 @@ function _kdb_cludo_entity_save(EntityInterface $entity): void {
 
   $pushQueue->addEntity($entity, !$entity->isPublished());
 
-  // Also push the series, if it's an instance.
+  // Also push the series, if it's an instance. An instance can outlive its
+  // series - a dangling reference must not make the save blow up.
   if ($entity instanceof EventInstance) {
     $series = $entity->getEventSeries();
-    $pushQueue->addEntity($series, !$series->isPublished());
+
+    if ($series) {
+      $pushQueue->addEntity($series, !$series->isPublished());
+    }
   }
 }
 
