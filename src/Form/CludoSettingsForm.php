@@ -8,6 +8,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
+use Drupal\kdb_cludo\Services\CludoApiService;
 use Drupal\kdb_cludo\Services\CludoProfileService;
 use Drupal\kdb_cludo\Services\CludoPushQueue;
 use Drupal\views\ViewExecutable;
@@ -23,7 +24,13 @@ class CludoSettingsForm extends ConfigFormBase {
    */
   public const CONFIG_SETTINGS_KEY = 'kdb_cludo.settings';
 
-  public function __construct(ConfigFactoryInterface $configFactory, private CacheTagsInvalidatorInterface $cacheTagsInvalidator, private CludoProfileService $cludoProfileService, protected CludoPushQueue $cludoPushQueue) {
+  public function __construct(
+    ConfigFactoryInterface $configFactory,
+    private CacheTagsInvalidatorInterface $cacheTagsInvalidator,
+    private CludoProfileService $cludoProfileService,
+    protected CludoPushQueue $cludoPushQueue,
+    protected CludoApiService $cludoApiService,
+  ) {
     parent::__construct($configFactory);
   }
 
@@ -36,6 +43,7 @@ class CludoSettingsForm extends ConfigFormBase {
       $container->get('cache_tags.invalidator'),
       $container->get('kdb_cludo.cludo_profile'),
       $container->get('kdb_cludo.push_queue'),
+      $container->get('kdb_cludo.cludo_api'),
     );
   }
 
@@ -165,6 +173,10 @@ class CludoSettingsForm extends ConfigFormBase {
     ];
 
     $pending = $this->cludoPushQueue->getPendingCount();
+
+    if ($this->cludoApiService->isUrlPushingEnabled() && !$this->cludoApiService->isAvailable()) {
+      $this->messenger()->addWarning($this->t('URL pushing is enabled, but the Cludo customer ID or API key is missing. Nothing is pushed until both are set.', [], ['context' => 'kdb_cludo']));
+    }
 
     $form['url_pushing']['queue_status'] = [
       '#type' => 'item',
