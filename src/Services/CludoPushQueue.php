@@ -9,6 +9,7 @@ use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\Queue\QueueInterface;
 use Drupal\drupal_typed\DrupalTyped;
 use Drupal\kdb_cludo\CludoPushBatch;
+use Drupal\kdb_cludo\CludoPushRun;
 use Drupal\kdb_cludo\Form\CludoSettingsForm;
 use GuzzleHttp\Exception\BadResponseException;
 use Psr\Log\LoggerInterface;
@@ -23,6 +24,12 @@ use Psr\Log\LoggerInterface;
  *
  * So instead we write the URLs to a queue as content is saved, which is
  * cheap, and let cron push them to Cludo in batches afterwards.
+ *
+ * An editor saving a single page should not have to wait for cron, though.
+ * When a web request has queued something, PushQueueOnTerminate drains part
+ * of the queue once the response has been sent - see that class.
+ *
+ * @see \Drupal\kdb_cludo\EventSubscriber\PushQueueOnTerminate
  */
 class CludoPushQueue {
 
@@ -42,6 +49,15 @@ class CludoPushQueue {
   public const DEFAULT_REQUESTS_PER_CRON = 25;
 
   /**
+   * How many one-URL retries may be rejected in a row before we stop.
+   *
+   * When a rejected batch is retried URL by URL and this many are rejected
+   * before a single one gets through, we stop treating it as bad URLs, and
+   * start treating it as a bad request - see retryIndividually().
+   */
+  public const REJECTIONS_BEFORE_SUSPECTING_CONFIG = 3;
+
+  /**
    * How long a claimed queue item is ours, before it can be claimed again.
    *
    * This only matters if a cron run dies half way through - the items it had
@@ -53,6 +69,18 @@ class CludoPushQueue {
    * The config, saved through CludoSettingsForm.
    */
   private ImmutableConfig $config;
+
+  /**
+   * How many URLs have been queued during this request (or CLI run).
+   */
+  private int $queuedThisRequest = 0;
+
+  /**
+   * Whether we have already warned about missing credentials this request.
+   *
+   * A mass update saves thousands of entities; one warning is plenty.
+   */
+  private bool $warnedUnavailable = FALSE;
 
   /**
    * {@inheritdoc}
@@ -122,6 +150,17 @@ class CludoPushQueue {
       return FALSE;
     }
 
+    // Without credentials nothing can ever be pushed, so queueing would only
+    // let the queue grow without bound. Refuse, and say so - once.
+    if (!$this->apiService->isAvailable()) {
+      if (!$this->warnedUnavailable) {
+        $this->logger->warning('URL pushing to Cludo is enabled, but the customer ID or API key is missing - content saved now will not be pushed.');
+        $this->warnedUnavailable = TRUE;
+      }
+
+      return FALSE;
+    }
+
     $crawlerId = $this->apiService->getCrawlerId($entity);
 
     if (!$crawlerId) {
@@ -147,7 +186,19 @@ class CludoPushQueue {
       'delete' => $delete,
     ]);
 
+    $this->queuedThisRequest++;
+
     return TRUE;
+  }
+
+  /**
+   * Tells if anything has been queued during the current request.
+   *
+   * This is what lets us expedite an editor's own changes: if the request
+   * that is ending queued URLs, they are worth pushing right away.
+   */
+  public function hasQueuedThisRequest(): bool {
+    return ($this->queuedThisRequest > 0);
   }
 
   /**
@@ -157,16 +208,41 @@ class CludoPushQueue {
    * number of requests, and leave the rest for the next cron run. That keeps
    * a large backlog from turning into a burst that Cludo rate limits.
    *
+   * The request budget is the hard bound. Every request counts against it -
+   * including the one-URL-at-a-time retries of a rejected batch - so a run
+   * can never make more requests than it was allowed, whatever Cludo answers.
+   *
+   * @param int|null $maxRequests
+   *   How many Cludo requests to make at most. Defaults to the configured
+   *   requests-per-cron; pass something smaller when there is less time to
+   *   spare than cron has.
+   *
    * @return int
    *   The number of URLs pushed.
    */
-  public function processQueue(): int {
-    if (!$this->apiService->isAvailable() || !$this->apiService->isUrlPushingEnabled()) {
+  public function processQueue(?int $maxRequests = NULL): int {
+    if (!$this->apiService->isUrlPushingEnabled()) {
       return 0;
     }
 
+    if (!$this->apiService->isAvailable()) {
+      // Whatever is in the queue was put there while we still had
+      // credentials. It is not lost, but it is going nowhere until they
+      // are back, and someone should know.
+      $pending = $this->getPendingCount();
+
+      if ($pending > 0) {
+        $this->logger->warning('URL pushing to Cludo is enabled, but the customer ID or API key is missing - @count URL(s) are waiting in the queue and cannot be pushed.', [
+          '@count' => $pending,
+        ]);
+      }
+
+      return 0;
+    }
+
+    $run = new CludoPushRun($maxRequests ?? $this->getRequestsPerCron());
     $queue = $this->getQueue();
-    [$items, $malformed] = $this->filterValidItems($this->claimItems($queue));
+    [$items, $malformed] = $this->filterValidItems($this->claimItems($queue, $run->budget));
 
     // Nothing we can do with these, and leaving them would mean claiming them
     // again on every single cron run.
@@ -179,35 +255,44 @@ class CludoPushQueue {
     }
 
     $batches = $this->buildBatches($items);
-    $pushed = 0;
 
     foreach ($batches as $index => $batch) {
-      try {
-        // pushUrls() throws on 4xx/5xx - FALSE is the odd case of a response
-        // that is not an outright error, but not a success either. Treat it
-        // like a 5xx: put the URLs back, and let a later cron retry them.
-        if (!$this->apiService->pushUrls($batch->urls, $batch->crawlerId, $batch->delete)) {
-          throw new \RuntimeException('Cludo did not accept the pushed URLs.');
-        }
+      // Batches are split per crawler and operation, so there can be a few
+      // more of them than the budget - those wait for the next run.
+      if (!$run->hasBudget()) {
+        $released = $this->releaseBatches($queue, array_slice($batches, $index));
 
+        $this->logger->info('Cludo URL pushing stopped for this run after @requests request(s) - @released URL(s) left for the next run.', [
+          '@requests' => $run->requests,
+          '@released' => $released,
+        ]);
+
+        return $run->pushed;
+      }
+
+      try {
+        $this->pushUrls($run, $batch->urls, $batch);
         $this->deleteItems($queue, $batch->items);
-        $pushed += count($batch->urls);
+        $run->pushed += count($batch->urls);
       }
       catch (\Throwable $e) {
+        $message = $e->getMessage();
+
         // Cludo rejected the batch outright - but with several URLs in the
         // same request, the response does not tell us which of them it
         // objects to. Retry them one at a time, so only the URLs Cludo
         // actually rejects get dropped; the rest still go through.
         if ($this->getRejectionStatus($e) !== NULL) {
-          try {
-            $this->retryIndividually($queue, $batch, $pushed);
+          $stopped = $this->retryIndividually($run, $queue, $batch);
+
+          if ($stopped === NULL) {
             continue;
           }
-          catch (\Throwable $e) {
-            // The retries were interrupted by rate limiting or a server
-            // error. The batch's unhandled items are back in $batch->items,
-            // so they are released below, along with the later batches.
-          }
+
+          // The retries could not settle the batch. Its unhandled items are
+          // back in $batch->items, and are released below along with the
+          // later batches.
+          $message = $stopped;
         }
 
         // We are being rate limited, Cludo is having a bad day, or our
@@ -216,16 +301,38 @@ class CludoPushQueue {
         $released = $this->releaseBatches($queue, array_slice($batches, $index));
 
         $this->logger->warning('Cludo URL pushing paused after @pushed URL(s) - @released URL(s) put back in the queue. Message: @message', [
-          '@pushed' => $pushed,
+          '@pushed' => $run->pushed,
           '@released' => $released,
-          '@message' => $e->getMessage(),
+          '@message' => $message,
         ]);
 
-        return $pushed;
+        return $run->pushed;
       }
     }
 
-    return $pushed;
+    return $run->pushed;
+  }
+
+  /**
+   * Making one Cludo request on behalf of a batch, and counting it.
+   *
+   * @param \Drupal\kdb_cludo\CludoPushRun $run
+   *   The run the request belongs to.
+   * @param string[] $urls
+   *   The URLs to push - the whole batch, or a single one being retried.
+   * @param \Drupal\kdb_cludo\CludoPushBatch $batch
+   *   The batch the URLs belong to, deciding crawler and operation.
+   *
+   * @throws \Throwable
+   *   Whatever the API call throws - or a RuntimeException if Cludo answered
+   *   without accepting, which callers should treat like a server error.
+   */
+  private function pushUrls(CludoPushRun $run, array $urls, CludoPushBatch $batch): void {
+    $run->requests++;
+
+    if (!$this->apiService->pushUrls($urls, $batch->crawlerId, $batch->delete)) {
+      throw new \RuntimeException('Cludo did not accept the pushed URL(s).');
+    }
   }
 
   /**
@@ -235,56 +342,107 @@ class CludoPushQueue {
    * URL it objects to, so each URL is retried in its own request. The URLs
    * Cludo rejects individually are dropped and logged; the rest go through.
    *
-   * If the retries get rate limited (or hit a server error), the exception
-   * bubbles up to stop the run - with the batch's unhandled items left in
-   * $batch->items, ready to be released back into the queue.
+   * There is a catch. If Cludo rejects the request itself - the crawler ID
+   * points nowhere, say, or the customer ID is wrong - every single URL comes
+   * back rejected too, and retrying one by one would drop the whole batch as
+   * "bad URLs" while burning a request per URL. So we watch the first few
+   * retries: if they are all rejected before anything has gone through, we
+   * assume the problem is the request, not the URLs, and stop - keeping the
+   * URLs in the queue for when the configuration has been fixed.
    *
+   * The retries also stop when the run's request budget is spent, or on rate
+   * limiting and server errors. In all of those cases the batch's unhandled
+   * items are left in $batch->items, ready to be released back into the
+   * queue, and the reason is returned for the caller to log.
+   *
+   * @param \Drupal\kdb_cludo\CludoPushRun $run
+   *   The current run, whose request budget the retries count against.
    * @param \Drupal\Core\Queue\QueueInterface $queue
    *   The queue the batch's items came from.
    * @param \Drupal\kdb_cludo\CludoPushBatch $batch
    *   The rejected batch.
-   * @param int $pushed
-   *   The run's tally of pushed URLs. By reference, so the URLs pushed
-   *   before an interruption still count.
+   *
+   * @return string|null
+   *   NULL if every URL in the batch was settled - pushed, or dropped as
+   *   rejected. Otherwise the reason the retries stopped early.
    */
-  private function retryIndividually(QueueInterface $queue, CludoPushBatch $batch, int &$pushed): void {
+  private function retryIndividually(CludoPushRun $run, QueueInterface $queue, CludoPushBatch $batch): ?string {
     $itemsByUrl = [];
 
     foreach ($batch->items as $item) {
       $itemsByUrl[(string) $item->data['url']][] = $item;
     }
 
+    // URL => the rejection's status code. These are only dropped once we are
+    // confident the rejections are about the URLs - see below.
+    $rejected = [];
+    $succeeded = 0;
+    $stopped = NULL;
+
     while (!empty($itemsByUrl)) {
+      if (!$run->hasBudget()) {
+        $stopped = sprintf('The run\'s budget of %d request(s) is spent.', $run->budget);
+        break;
+      }
+
       $url = (string) array_key_first($itemsByUrl);
 
       try {
-        if (!$this->apiService->pushUrls([$url], $batch->crawlerId, $batch->delete)) {
-          throw new \RuntimeException('Cludo did not accept the pushed URL.');
-        }
+        $this->pushUrls($run, [$url], $batch);
+        $this->deleteItems($queue, $itemsByUrl[$url]);
+        unset($itemsByUrl[$url]);
 
-        $pushed++;
+        $run->pushed++;
+        $succeeded++;
       }
       catch (\Throwable $e) {
         $status = $this->getRejectionStatus($e);
 
         if ($status === NULL) {
-          $batch->items = array_merge([], ...array_values($itemsByUrl));
-
-          throw $e;
+          $stopped = $e->getMessage();
+          break;
         }
 
-        $this->logger->error('Cludo rejected @url with status @status - dropping it from the queue. Message: @message', [
+        $rejected[$url] = $status;
+        unset($itemsByUrl[$url]);
+
+        if ($succeeded === 0 && count($rejected) >= self::REJECTIONS_BEFORE_SUSPECTING_CONFIG) {
+          $stopped = sprintf(
+            'The first %d URL(s) retried on their own were all rejected (status %d) - this looks like a problem with the request rather than the URLs. Check the crawler and customer IDs.',
+            count($rejected),
+            $status
+          );
+          break;
+        }
+      }
+    }
+
+    if ($stopped === NULL || $succeeded > 0) {
+      // Cludo does accept URLs from us, so what it rejected, it rejected on
+      // the URL's own merits. Those are settled: drop them.
+      foreach ($rejected as $url => $status) {
+        $this->logger->error('Cludo rejected @url with status @status - dropping it from the queue.', [
           '@url' => $url,
           '@status' => $status,
-          '@message' => $e->getMessage(),
         ]);
+
+        $this->deleteItems($queue, $batch->itemsForUrl($url));
       }
 
-      // Pushed, or rejected and dropped - either way the URL is settled,
-      // and its queue items are done.
-      $this->deleteItems($queue, $itemsByUrl[$url]);
-      unset($itemsByUrl[$url]);
+      $rejected = [];
     }
+
+    // Whatever is left - untried URLs, and rejections we do not trust - goes
+    // back to the caller for releasing.
+    $remaining = $itemsByUrl;
+
+    foreach (array_keys($rejected) as $url) {
+      $remaining[$url] = $batch->itemsForUrl($url);
+    }
+
+    $batch->items = array_merge([], ...array_values($remaining));
+
+    return $stopped;
   }
 
   /**
@@ -320,11 +478,16 @@ class CludoPushQueue {
   /**
    * Claiming as many queue items as we are allowed to push in one run.
    *
+   * @param \Drupal\Core\Queue\QueueInterface $queue
+   *   The queue to claim from.
+   * @param int $maxRequests
+   *   How many Cludo requests the run is allowed to make.
+   *
    * @return \stdClass[]
    *   The claimed queue items.
    */
-  private function claimItems(QueueInterface $queue): array {
-    $limit = $this->getUrlsPerRequest() * $this->getRequestsPerCron();
+  private function claimItems(QueueInterface $queue, int $maxRequests): array {
+    $limit = $this->getUrlsPerRequest() * max(1, $maxRequests);
     $items = [];
 
     while (count($items) < $limit) {

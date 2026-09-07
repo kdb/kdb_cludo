@@ -22,6 +22,16 @@ use function Safe\json_encode;
 class CludoApiService {
 
   /**
+   * Seconds to wait for a connection to Cludo, before giving up.
+   */
+  public const CONNECT_TIMEOUT = 5;
+
+  /**
+   * Seconds to wait for Cludo to answer a request, before giving up.
+   */
+  public const TIMEOUT = 20;
+
+  /**
    * The config, saved through CludoSettingsForm.
    */
   private ImmutableConfig $config;
@@ -133,6 +143,12 @@ class CludoApiService {
             'Authorization' => "Basic {$this->authKey}",
           ],
           'json' => $body,
+          // A push may run after the response has been sent, holding on to a
+          // PHP worker - so a Cludo that does not answer must not hold on to
+          // it for long. Cron gets the same limits; it has no reason to wait
+          // any longer.
+          'connect_timeout' => self::CONNECT_TIMEOUT,
+          'timeout' => self::TIMEOUT,
         ]
       );
     }
