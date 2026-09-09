@@ -25,11 +25,11 @@ use Psr\Log\LoggerInterface;
  * So instead we write the URLs to a queue as content is saved, which is
  * cheap, and let cron push them to Cludo in batches afterwards.
  *
- * An editor saving a single page should not have to wait for cron, though.
- * When a web request has queued something, PushQueueOnTerminate drains part
- * of the queue once the response has been sent - see that class.
+ * Only the CLI - update hooks, migrations, drush - queues as a matter of
+ * course. An editor saving a page in a web request pushes the URL directly,
+ * and the queue is the fallback for when Cludo does not accept it.
  *
- * @see \Drupal\kdb_cludo\EventSubscriber\PushQueueOnTerminate
+ * @see _kdb_cludo_push_entity()
  */
 class CludoPushQueue {
 
@@ -69,11 +69,6 @@ class CludoPushQueue {
    * The config, saved through CludoSettingsForm.
    */
   private ImmutableConfig $config;
-
-  /**
-   * How many URLs have been queued during this request (or CLI run).
-   */
-  private int $queuedThisRequest = 0;
 
   /**
    * Whether we have already warned about missing credentials this request.
@@ -186,19 +181,7 @@ class CludoPushQueue {
       'delete' => $delete,
     ]);
 
-    $this->queuedThisRequest++;
-
     return TRUE;
-  }
-
-  /**
-   * Tells if anything has been queued during the current request.
-   *
-   * This is what lets us expedite an editor's own changes: if the request
-   * that is ending queued URLs, they are worth pushing right away.
-   */
-  public function hasQueuedThisRequest(): bool {
-    return ($this->queuedThisRequest > 0);
   }
 
   /**
@@ -214,8 +197,7 @@ class CludoPushQueue {
    *
    * @param int|null $maxRequests
    *   How many Cludo requests to make at most. Defaults to the configured
-   *   requests-per-cron; pass something smaller when there is less time to
-   *   spare than cron has.
+   *   requests-per-cron.
    *
    * @return int
    *   The number of URLs pushed.

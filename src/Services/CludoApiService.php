@@ -143,10 +143,9 @@ class CludoApiService {
             'Authorization' => "Basic {$this->authKey}",
           ],
           'json' => $body,
-          // A push may run after the response has been sent, holding on to a
-          // PHP worker - so a Cludo that does not answer must not hold on to
-          // it for long. Cron gets the same limits; it has no reason to wait
-          // any longer.
+          // An editor's save waits for the push to finish, so a Cludo that
+          // does not answer must not keep them waiting for long. Cron gets
+          // the same limits; it has no reason to wait any longer.
           'connect_timeout' => self::CONNECT_TIMEOUT,
           'timeout' => self::TIMEOUT,
         ]
@@ -244,13 +243,22 @@ class CludoApiService {
    * Pushing a single entity to Cludo, right away.
    *
    * Notice that this blocks the current request until Cludo has answered.
-   * Anything that may touch more than a handful of entities - update hooks,
-   * bulk operations, migrations - should go through CludoPushQueue instead.
+   * That is fine for an editor saving a page, but anything that may touch
+   * more than a handful of entities - update hooks, bulk operations,
+   * migrations - should go through CludoPushQueue instead.
+   *
+   * @return bool
+   *   Whether Cludo accepted the URL. FALSE also when there was nothing to
+   *   do - pushing disabled, or no credentials or crawler to push with.
+   *
+   * @throws \Exception
+   *   Whatever the HTTP client throws when Cludo does not answer 2xx.
    *
    * @see \Drupal\kdb_cludo\Services\CludoPushQueue
+   * @see _kdb_cludo_push_entity()
    */
   public function pushEntityData(FieldableEntityInterface $entity, bool $delete = FALSE): bool {
-    if (!$this->isUrlPushingEnabled()) {
+    if (!$this->isUrlPushingEnabled() || !$this->isAvailable()) {
       return FALSE;
     }
 
