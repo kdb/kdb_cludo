@@ -170,8 +170,7 @@ function kdb_cludo_entity_predelete(EntityInterface $entity): void {
     return;
   }
 
-  $pushQueue = _kdb_cludo_push_queue();
-  $pushQueue->addEntity($entity, TRUE);
+  _kdb_cludo_push_entity($entity, TRUE);
 }
 
 /**
@@ -191,16 +190,7 @@ function kdb_cludo_entity_insert(EntityInterface $entity): void {
 /**
  * Triggered after a node is saved - either by hook_insert or hook_update.
  *
- * We only queue the URL here. Actually calling Cludo happens on cron, so
- * that mass updates of e.g. event instances don't fire thousands of
- * requests - which Cludo answers with 429 Too Many Requests - while holding
- * up whatever did the saving.
- *
- * In a web request - an editor pressing save - the queue is also drained
- * once the response has gone out, so the editor's change reaches Cludo
- * without waiting for cron.
- *
- * @see \Drupal\kdb_cludo\EventSubscriber\PushQueueOnTerminate
+ * @see _kdb_cludo_push_entity()
  */
 function _kdb_cludo_entity_save(EntityInterface $entity): void {
   if (!($entity instanceof NodeInterface) &&
@@ -210,9 +200,7 @@ function _kdb_cludo_entity_save(EntityInterface $entity): void {
     return;
   }
 
-  $pushQueue = _kdb_cludo_push_queue();
-
-  $pushQueue->addEntity($entity, !$entity->isPublished());
+  _kdb_cludo_push_entity($entity, !$entity->isPublished());
 
   // Also push the series, if it's an instance. An instance can outlive its
   // series - a dangling reference must not make the save blow up.
@@ -220,8 +208,50 @@ function _kdb_cludo_entity_save(EntityInterface $entity): void {
     $series = $entity->getEventSeries();
 
     if ($series) {
-      $pushQueue->addEntity($series, !$series->isPublished());
+      _kdb_cludo_push_entity($series, !$series->isPublished());
     }
+  }
+}
+
+/**
+ * Telling Cludo about a changed entity - right away, or through the queue.
+ *
+ * In a web request, the save is an editor pressing a button, and pushing the
+ * one URL straight to Cludo is the simplest way for their change to show up
+ * in search right away.
+ *
+ * On the CLI, saves come from update hooks, migrations and drush cron - the
+ * bulk operations that once fired thousands of requests at Cludo, who
+ * answered 429 Too Many Requests while the deployment sat and waited. There,
+ * the URL goes into the queue instead, and cron pushes it in batches.
+ *
+ * A direct push that Cludo does not accept - rate limiting, an outage - falls
+ * back to the queue too, so the URL is retried on cron rather than lost, and
+ * the editor's save goes through regardless.
+ *
+ * @param \Drupal\Core\Entity\FieldableEntityInterface $entity
+ *   The entity whose canonical URL Cludo should (re)index or forget.
+ * @param bool $delete
+ *   Whether the URL should be un-indexed, rather than indexed.
+ */
+function _kdb_cludo_push_entity(FieldableEntityInterface $entity, bool $delete): void {
+  if (PHP_SAPI === 'cli') {
+    _kdb_cludo_push_queue()->addEntity($entity, $delete);
+    return;
+  }
+
+  $apiService = DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api');
+
+  try {
+    $pushed = $apiService->pushEntityData($entity, $delete);
+  }
+  catch (\Exception) {
+    // The API service has already logged what went wrong.
+    $pushed = FALSE;
+  }
+
+  if (!$pushed) {
+    _kdb_cludo_push_queue()->addEntity($entity, $delete);
   }
 }
 
@@ -229,6 +259,8 @@ function _kdb_cludo_entity_save(EntityInterface $entity): void {
  * Implements hook_cron().
  *
  * Pushing the queued URLs to Cludo, in batches.
+ *
+ * @see _kdb_cludo_push_entity()
  */
 function kdb_cludo_cron(): void {
   $pushQueue = _kdb_cludo_push_queue();
