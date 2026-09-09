@@ -7,13 +7,21 @@ Add-on module for integrating [Cludo Search](https://www.cludo.com/) on bibliote
 When *URL pushing* is enabled in the module settings, saving or deleting a
 node, event series or event instance tells Cludo to (re)index the URL.
 
-The push does **not** happen on save. Instead the URL is written to the
-`kdb_cludo_url_push` queue, and cron pushes the queued URLs to Cludo in
-batches. This matters because:
+How that happens depends on where the save came from:
 
-- Cludo answers `429 Too Many Requests` if we push URLs one at a time.
-- Mass updates - update hooks, bulk operations - would otherwise block on
-  thousands of API calls, and hold up a deployment while doing so.
+- **In a web request** - an editor pressing save - the URL is pushed to Cludo
+  right away, so the change shows up in search without waiting for cron.
+- **On the CLI** - update hooks, migrations, `drush cron` - the URL is written
+  to the `kdb_cludo_url_push` queue instead, and cron pushes the queued URLs
+  to Cludo in batches. Bulk operations would otherwise fire thousands of
+  requests, which Cludo answers with `429 Too Many Requests`, while holding up
+  the deployment that triggered them.
+
+A direct push that Cludo doesn't accept - rate limiting, an outage - falls
+back to the queue as well, so the URL is retried on cron rather than lost, and
+the editor's save goes through regardless.
+
+### The queue
 
 Duplicate URLs are collapsed per batch, so saving all instances of an event
 series only pushes the series once. If a URL is queued with conflicting
@@ -44,20 +52,6 @@ The settings page shows how many URLs are pending, and can push a cron run's
 worth of them right away.
 
 URL pushing needs the Cludo customer ID and API key. If pushing is enabled
-without them, nothing is queued (the queue would otherwise grow forever), a
-warning is logged, and the settings page says so. URLs already in the queue
-stay there until the credentials are back.
-
-### Editors don't wait for cron
-
-An editor saving a single page shouldn't have to wait for cron before it
-shows up in search. So when a *web request* queues URLs, the module drains a
-small slice of the queue (5 requests, see `PushQueueOnTerminate`) after the
-response has been sent to the browser. The editor never waits, and the queue
-still handles batching and deduplication - saving an event series that
-regenerates 200 instances costs a handful of requests, not hundreds.
-
-The queue is first-in-first-out, so right after a deployment an editor's URLs
-may sit behind the backlog until cron catches up. Nothing runs on the CLI:
-update hooks and `drush cron` are exactly the bulk operations the queue
-exists to protect against.
+without them, nothing is pushed or queued (the queue would otherwise grow
+forever), a warning is logged, and the settings page says so. URLs already in
+the queue stay there until the credentials are back.
