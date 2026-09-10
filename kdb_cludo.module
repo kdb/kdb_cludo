@@ -17,6 +17,7 @@ use Drupal\image\Entity\ImageStyle;
 use Drupal\kdb_cludo\CludoProfile;
 use Drupal\kdb_cludo\Services\CludoApiService;
 use Drupal\kdb_cludo\Services\CludoProfileService;
+use Drupal\kdb_cludo\Services\CludoPushQueue;
 use Drupal\media\MediaInterface;
 use Drupal\node\NodeInterface;
 use Drupal\paragraphs\ParagraphInterface;
@@ -139,6 +140,26 @@ function kdb_cludo_entity_base_field_info(EntityTypeInterface $entity_type): arr
 }
 
 /**
+ * Getting the queue that holds URLs waiting to be pushed to Cludo.
+ *
+ * We do not just ask the container for kdb_cludo.push_queue, because it may
+ * not know about it yet: Drupal does not rebuild the container just because a
+ * module's services.yml gained a service, and `drush deploy` runs update hooks
+ * before it rebuilds caches. Update hooks that save content - dpl_update saves
+ * every event instance on the site - would otherwise die on a container that
+ * predates this release.
+ *
+ * The fallback can go away once every site has deployed past this release.
+ */
+function _kdb_cludo_push_queue(): CludoPushQueue {
+  if (\Drupal::hasService('kdb_cludo.push_queue')) {
+    return DrupalTyped::service(CludoPushQueue::class, 'kdb_cludo.push_queue');
+  }
+
+  return CludoPushQueue::createFromContainer();
+}
+
+/**
  * Implements hook_entity_predelete().
  */
 function kdb_cludo_entity_predelete(EntityInterface $entity): void {
@@ -149,8 +170,7 @@ function kdb_cludo_entity_predelete(EntityInterface $entity): void {
     return;
   }
 
-  $apiService = DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api');
-  $apiService->removeEntityData($entity);
+  _kdb_cludo_push_entity($entity, TRUE);
 }
 
 /**
@@ -169,6 +189,8 @@ function kdb_cludo_entity_insert(EntityInterface $entity): void {
 
 /**
  * Triggered after a node is saved - either by hook_insert or hook_update.
+ *
+ * @see _kdb_cludo_push_entity()
  */
 function _kdb_cludo_entity_save(EntityInterface $entity): void {
   if (!($entity instanceof NodeInterface) &&
@@ -178,15 +200,71 @@ function _kdb_cludo_entity_save(EntityInterface $entity): void {
     return;
   }
 
-  $apiService = DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api');
+  _kdb_cludo_push_entity($entity, !$entity->isPublished());
 
-  $apiService->pushEntityData($entity, !$entity->isPublished());
-
-  // Also push the series, if it's an instance.
+  // Also push the series, if it's an instance. An instance can outlive its
+  // series - a dangling reference must not make the save blow up.
   if ($entity instanceof EventInstance) {
     $series = $entity->getEventSeries();
-    $apiService->pushEntityData($series, !$series->isPublished());
+
+    if ($series) {
+      _kdb_cludo_push_entity($series, !$series->isPublished());
+    }
   }
+}
+
+/**
+ * Telling Cludo about a changed entity - right away, or through the queue.
+ *
+ * In a web request, the save is an editor pressing a button, and pushing the
+ * one URL straight to Cludo is the simplest way for their change to show up
+ * in search right away.
+ *
+ * On the CLI, saves come from update hooks, migrations and drush cron - the
+ * bulk operations that once fired thousands of requests at Cludo, who
+ * answered 429 Too Many Requests while the deployment sat and waited. There,
+ * the URL goes into the queue instead, and cron pushes it in batches.
+ *
+ * A direct push that Cludo does not accept - rate limiting, an outage - falls
+ * back to the queue too, so the URL is retried on cron rather than lost, and
+ * the editor's save goes through regardless.
+ *
+ * @param \Drupal\Core\Entity\FieldableEntityInterface $entity
+ *   The entity whose canonical URL Cludo should (re)index or forget.
+ * @param bool $delete
+ *   Whether the URL should be un-indexed, rather than indexed.
+ */
+function _kdb_cludo_push_entity(FieldableEntityInterface $entity, bool $delete): void {
+  if (PHP_SAPI === 'cli') {
+    _kdb_cludo_push_queue()->addEntity($entity, $delete);
+    return;
+  }
+
+  $apiService = DrupalTyped::service(CludoApiService::class, 'kdb_cludo.cludo_api');
+
+  try {
+    $pushed = $apiService->pushEntityData($entity, $delete);
+  }
+  catch (\Exception) {
+    // The API service has already logged what went wrong.
+    $pushed = FALSE;
+  }
+
+  if (!$pushed) {
+    _kdb_cludo_push_queue()->addEntity($entity, $delete);
+  }
+}
+
+/**
+ * Implements hook_cron().
+ *
+ * Pushing the queued URLs to Cludo, in batches.
+ *
+ * @see _kdb_cludo_push_entity()
+ */
+function kdb_cludo_cron(): void {
+  $pushQueue = _kdb_cludo_push_queue();
+  $pushQueue->processQueue();
 }
 
 /**
