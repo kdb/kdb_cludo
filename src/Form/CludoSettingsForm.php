@@ -5,6 +5,7 @@ namespace Drupal\kdb_cludo\Form;
 use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 use Drupal\views\Views;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
@@ -26,12 +27,13 @@ class CludoSettingsForm extends ConfigFormBase {
 
   public function __construct(
     ConfigFactoryInterface $configFactory,
-    private CacheTagsInvalidatorInterface $cacheTagsInvalidator,
-    private CludoProfileService $cludoProfileService,
+    TypedConfigManagerInterface $typedConfigManager,
+    protected CacheTagsInvalidatorInterface $cacheTagsInvalidator,
+    protected CludoProfileService $cludoProfileService,
     protected CludoPushQueue $cludoPushQueue,
     protected CludoApiService $cludoApiService,
   ) {
-    parent::__construct($configFactory);
+    parent::__construct($configFactory, $typedConfigManager);
   }
 
   /**
@@ -40,6 +42,7 @@ class CludoSettingsForm extends ConfigFormBase {
   public static function create(ContainerInterface $container): static {
     return new static(
       $container->get('config.factory'),
+      $container->get('config.typed'),
       $container->get('cache_tags.invalidator'),
       $container->get('kdb_cludo.cludo_profile'),
       $container->get('kdb_cludo.push_queue'),
